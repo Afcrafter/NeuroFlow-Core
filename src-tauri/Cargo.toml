@@ -1,0 +1,43 @@
+[package]
+name = "speed-browser-system"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "speed_browser_system_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+# 处理 JSON 数据（以后肯定要用）
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# Web 服务器框架
+axum = "0.7"
+# 异步运行时（让程序能同时做多件事）
+tokio = { version = "1", features = ["full"] }
+# HTTP 相关工具（这里主要为了解决跨域 CORS 问题）
+tower-http = { version = "0.5", features = ["cors"] }
+sysinfo = "0.32"
+warp = "0.3"
+bytes = "1"
+sled = "0.34"
+# 获取系统目录（如缓存目录）
+dirs = "5"
+uuid = { version = "1.0", features = ["v4", "fast-rng"] }
+
+
+
+
+

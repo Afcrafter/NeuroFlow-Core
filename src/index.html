@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroFlow CORE - 极速大脑</title>
+    <style>
+        /* --- 核心极客主题 --- */
+        :root {
+            --neon-blue: #00f2ff;
+            --deep-bg: #0d0d0d;
+            --card-bg: #161616;
+            --text-dim: #888;
+            --danger: #ff4d4f;
+        }
+
+        body {
+            background-color: var(--deep-bg);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Consolas, monospace;
+            margin: 0; padding: 0;
+            /* 移除 padding，由容器控制 */
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- 顶部导航栏 --- */
+        header {
+            background: rgba(13, 13, 13, 0.95);
+            padding: 15px 25px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        .header-left h1 { margin: 0; font-size: 20px; color: var(--neon-blue); letter-spacing: 1px; }
+        .header-left span { font-size: 10px; color: #666; margin-left: 5px; }
+
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        /* 状态指示灯 */
+        .status-badge {
+            background: #111;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            border: 1px solid #333;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .status-dot { width: 8px; height: 8px; background: #0f0; border-radius: 50%; box-shadow: 0 0 8px #0f0; transition: 0.3s; }
+
+        /* --- 主仪表盘布局 --- */
+        .dashboard {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr; /* 左侧稍宽 */
+            gap: 20px;
+            padding: 20px;
+            overflow: hidden; /* 防止整体滚动 */
+        }
+
+        /* 左右分栏容器：实现独立滚动 */
+        .col-left, .col-right {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            padding-right: 5px; /* 给滚动条留空 */
+        }
+
+        /* 隐藏滚动条但保留功能 (Webkit) */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--neon-blue); }
+
+        /* --- 通用卡片样式 --- */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            transition: border-color 0.3s;
+        }
+        .card:hover { border-color: #444; }
+        .card h3 { margin: 0 0 15px 0; font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #222; padding-bottom: 8px; }
+
+        /* --- 网络监测区 --- */
+        .net-monitor { text-align: center; padding: 10px 0; }
+        .speed-val { font-size: 42px; font-weight: bold; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        .speed-unit { font-size: 12px; color: var(--text-dim); }
+
+        /* --- Tab 样式 --- */
+        .tab-header { display: flex; gap: 5px; background: #111; padding: 4px; border-radius: 4px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; background: transparent; border: none; color: #666; padding: 6px; cursor: pointer; font-size: 11px; border-radius: 4px; transition: 0.3s; }
+        .tab-btn.active { background: #222; color: var(--neon-blue); font-weight: bold; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+
+        /* --- 智能扫描按钮区 --- */
+        .scan-wrapper { position: relative; margin-top: 15px; }
+        #execute-scan-btn {
+            background: linear-gradient(90deg, rgba(0,242,255,0.1), rgba(0,242,255,0.2));
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 12px; width: 100%;
+            border-radius: 4px; cursor: pointer; font-weight: bold; letter-spacing: 1px;
+            transition: 0.3s;
+        }
+        #execute-scan-btn:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px rgba(0,242,255,0.4); }
+
+        /* 悬浮提示框 */
+        .scan-hint-box {
+            position: absolute;
+            bottom: 110%; left: 0; right: 0;
+            background: rgba(10,10,10,0.95); border: 1px solid #333;
+            padding: 15px; border-radius: 8px; z-index: 99;
+            opacity: 0;
+            visibility: hidden; transform: translateY(10px);
+            transition: 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            pointer-events: none;
+            backdrop-filter: blur(10px);
+        }
+        .scan-wrapper:hover .scan-hint-box { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        /* --- 右侧：维稳卡片 --- */
+        .stability-card { background: rgba(20,20,30,0.6); border: 1px solid rgba(0,242,255,0.2); }
+        .cyber-btn.danger {
+            background: rgba(255,77,79,0.1);
+            border: 1px solid var(--danger); color: var(--danger);
+            padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+            font-size: 12px; transition: 0.3s;
+        }
+        .cyber-btn.danger:hover { background: var(--danger); color: #fff; box-shadow: 0 0 15px rgba(255,77,79,0.4); }
+
+        /* --- 令牌卡片 (升级版) --- */
+        .token-card { 
+            border-color: rgba(0,242,255,0.3);
+            background: linear-gradient(180deg, var(--card-bg) 0%, rgba(0,242,255,0.02) 100%); 
+        }
+        #token-display { 
+            font-family: 'Consolas', monospace;
+            color: var(--neon-blue); font-size: 13px; letter-spacing: 0.5px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        
+        /* [新增] 安全模式选择样式 */
+        .radio-group { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; border-top: 1px dashed #333; padding-top: 10px; }
+        .radio-option { display: flex; align-items: flex-start; cursor: pointer; padding: 6px; border-radius: 4px; transition: 0.2s; }
+        .radio-option:hover { background: rgba(255,255,255,0.05); }
+        .radio-option input { margin-top: 5px; margin-right: 10px; accent-color: var(--neon-blue); transform: scale(1.1); }
+        .option-content { flex: 1; }
+        .option-title { display: flex; align-items: center; font-size: 12px; color: #ddd; font-weight: bold; margin-bottom: 2px; }
+        .option-desc { font-size: 10px; color: #666; line-height: 1.3; }
+        .tag { font-size: 9px; padding: 1px 4px; border-radius: 3px; margin-left: 6px; font-weight: normal; }
+        .tag.green { background: rgba(27, 94, 32, 0.5); color: #81c784; border: 1px solid #1b5e20; }
+        .tag.red { background: rgba(183, 28, 28, 0.5); color: #e57373; border: 1px solid #b71c1c; }
+
+
+        /* --- 动画 --- */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse-width { 0%, 100% { width: 0; } 50% { width: 100%; } }
+        .mini-wave { height: 2px; background: var(--neon-blue); width: 0; margin: 10px auto; animation: pulse-width 2s infinite; }
+        
+        /* 覆盖层 */
+        .neuro-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 999; }
+        .hidden { display: none; }
+        .radar-sweep { width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(from 0deg, transparent, var(--neon-blue)); animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 开关样式修正 */
+        .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--neon-blue); }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        /* 日志列表 */
+        #log-list { list-style: none; padding: 0; margin: 0; max-height: 120px; overflow-y: auto; font-size: 11px; font-family: 'Consolas', monospace; }
+        #log-list li { margin-bottom: 4px; color: #888; border-bottom: 1px dashed #222; padding-bottom: 2px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <h1>NEUROFLOW <span>CORE</span></h1>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <div class="status-dot active"></div>
+                <span class="status-text">NeuroFlow 守护中</span>
+            </div>
+            <div class="status-badge" style="border-color: #333;">
+                <span>🟢 系统在线</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        
+        <div class="col-left">
+            
+            <div class="card">
+    <h3>实时网络监测 (Network I/O)</h3>
+    <div class="net-monitor-grid">
+        <div class="net-item">
+            <div class="net-icon down">⬇️</div>
+            <div class="net-info">
+                <div class="net-label">下行 Download</div>
+                <div class="net-value-group">
+                    <span id="speed-down" class="speed-val">0.0</span>
+                    <span class="speed-unit">KB/s</span>
+                </div>
+            </div>
+            <div class="net-bar-bg"><div id="bar-down" class="net-bar down"></div></div>
+        </div>
+
+        <div class="net-item">
+            <div class="net-icon up">⬆️</div>
+            <div class="net-info">
+                <div class="net-label">上行 Upload</div>
+                <div class="net-value-group">
+                    <span id="speed-up" class="speed-val" style="color: var(--neon-purple);">0.0</span>
+                    <span class="speed-unit">KB/s</span>
+                </div>
+            </div>
+            <div class="net-bar-bg"><div id="bar-up" class="net-bar up"></div></div>
+        </div>
+    </div>
+</div>
+
+            <div class="card">
+                <h3>策略控制台</h3>
+                <div class="tab-header">
+                    <button class="tab-btn active" data-tab="mode-auto">📊 历史权重</button>
+                    <button class="tab-btn" data-tab="mode-manual">🛠️ 手动配置</button>
+                    <button class="tab-btn" data-tab="mode-ai">🧠 神经感知</button>
+                </div>
+
+                <div id="mode-auto" class="tab-content active">
+                    <div class="info-row" style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:10px;">
+                        <span>当前策略：</span><span style="color: var(--neon-blue);">Sled 频率分析</span>
+                    </div>
+                    <div class="info-row" style="display:flex; align-items:center; font-size:12px;">
+                        <span>数据置信度：</span>
+                        <div style="flex:1; height:4px; background:#333; margin:0 10px; border-radius:2px;">
+                            <div style="width:65%; height:100%; background:var(--neon-blue);"></div>
+                        </div>
+                        <span style="font-size:10px;">65%</span>
+                    </div>
+                </div>
+
+                <div id="mode-manual" class="tab-content">
+                    <div style="display: flex; gap:10px; margin-bottom:10px;">
+                        <input type="text" id="source-domain" placeholder="主域名 (bilibili.com)" style="flex:1; background:#000; border:1px solid #333; color:#fff; padding:6px; border-radius:4px;">
+                        <span style="color:var(--neon-blue)">➔</span>
+                        <input type="text" id="target-sub" placeholder="预载 (message)" style="flex:1; background:#000; border:1px solid #333; color:#fff; padding:6px; border-radius:4px;">
+                    </div>
+                    <button id="add-rule-btn" style="width:100%; background:#222; color:#fff; border:1px solid #444; padding:5px; cursor:pointer;">添加规则</button>
+                </div>
+
+                <div id="mode-ai" class="tab-content">
+                    <div class="info-row" style="font-size:12px; color:#aaa;">
+                        <p>Hover-Intent v2.0 模型已加载。正在分析微毫秒级鼠标意图。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>资源与焦点</h3>
+                
+                <div style="margin-bottom: 15px;">
+                    <span style="font-size: 11px; color: #666;">当前焦点 URL:</span>
+                    <div id="url-display" style="color: #ffd700; font-family: monospace; font-size: 12px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">等待捕获...</div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 10px;">
+                    <span style="color:#aaa;">系统内存占用:</span>
+                    <span id="mem-display" style="color:#fff; font-weight:bold;">读取中...</span>
+                </div>
+
+                <div class="scan-wrapper">
+                    <button id="execute-scan-btn">⚡ 执行智能扫描</button>
+                    <div class="scan-hint-box">
+                        <div style="color: var(--neon-blue); font-weight: bold; font-size: 13px; margin-bottom: 8px;">🧠 AI 深度扫描模式</div>
+                        <ul style="font-size: 11px; padding-left: 15px; color: #aaa; margin:0;">
+                            <li>识别所有后台闲置标签页</li>
+                            <li>语义分析防止误杀表单</li>
+                            <li>预计释放 ~450MB 内存</li>
+                        </ul>
+                        <div class="mini-wave"></div>
+                        <div style="font-size: 10px; color: var(--neon-blue); text-align: right;">实时估算: <span id="estimate-val">计算中...</span></div>
+                    </div>
+                </div>
+            </div>
+
+        </div> 
+        
+        <div class="col-right">
+
+            <div class="card stability-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="border:none; margin:0; color:#fff;">🛡️ 系统级维稳</h3>
+                    <button id="btn-emergency-fix" class="cyber-btn danger">
+                        <span>🚑 一键急救</span>
+                    </button>
+                </div>
+                <div style="font-size:11px; color:#aaa; margin-bottom:5px;">显存/渲染缓存状态</div>
+                <div id="gpu-status-text" style="color:var(--neon-blue); font-weight:bold; font-size:13px;">正常监控中</div>
+                
+                <div id="fix-feedback" style="display:none; margin-top:10px; padding:8px; background:#000; border-left:2px solid var(--danger); font-size:10px; color:#ccc;">
+                    <span style="color:var(--danger)">>_</span> <span id="fix-msg">正在扫描 GPU 进程...</span>
+                </div>
+            </div>
+
+            <div class="card" id="ai-control-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>AI 决策中心 (MCP)</h3>
+                    <label class="switch">
+                        <input type="checkbox" id="mcp-toggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                
+                <div style="margin-top: 15px; font-size: 12px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; color:#aaa;">
+                        <span>AI 自主回收资源</span>
+                        <input type="checkbox" id="perm-freeze" checked>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; color:#aaa;">
+                        <span>AI 自动重置网络</span>
+                        <input type="checkbox" id="perm-net">
+                    </div>
+                    <div style="display:flex; justify-content:space-between; color:#aaa;">
+                        <span>自动执行 (免确认)</span>
+                        <input type="checkbox" id="perm-auto">
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; border-top: 1px dashed #333; padding-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888;">
+                        <span>链路健康度</span>
+                        <span id="health-score" style="color: var(--neon-blue);">检测中...</span>
+                    </div>
+                    <div style="background: #222; height: 3px; width: 100%; margin-top: 5px;">
+                        <div id="health-bar" style="width: 0%; height: 100%; background: var(--neon-blue); transition: width 0.5s;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>智能决策日志</h3>
+                <ul id="log-list">
+                    <li><span class="log-time">[SYSTEM]</span> 核心引擎已就绪...</li>
+                </ul>
+            </div>
+
+            <div class="card token-card">
+                <h3>🔑 安全握手令牌</h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; background:rgba(0,0,0,0.3); padding:8px; border-radius:4px;">
+                    <div id="token-display">正在获取...</div>
+                    <button onclick="copyToken()" style="background:transparent; border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:10px; padding:2px 8px; border-radius:3px; cursor:pointer; flex-shrink:0; margin-left:8px;">复制</button>
+                </div>
+                <div style="font-size: 10px; color: #555; margin-top: 5px;">*请填入浏览器插件设置</div>
+
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="token_mode" value="fixed" onchange="changeMode('fixed')">
+                        <div class="option-content">
+                            <span class="option-title">🔒 固定模式 <span class="tag green">省心</span></span>
+                            <div class="option-desc">重启Token不变，体验佳</div>
+                        </div>
+                    </label>
+
+                    <label class="radio-option">
+                        <input type="radio" name="token_mode" value="random" onchange="changeMode('random')">
+                        <div class="option-content">
+                            <span class="option-title">🎲 随机模式 <span class="tag red">高安</span></span>
+                            <div class="option-desc">重启重置Token，极安全</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+        </div> 
+    </div>
+
+    <div id="scan-overlay" class="neuro-overlay hidden">
+        <div style="text-align: center;">
+            <div class="radar-sweep" style="margin: 0 auto 20px;"></div>
+            <p style="color: var(--neon-blue); font-size: 14px; letter-spacing: 2px;">正在分析语义状态...</p>
+            <button id="cancel-scan" style="background: transparent; border: 1px solid #444; color: #888; padding: 5px 20px; margin-top: 20px; cursor: pointer;">取消</button>
+        </div>
+    </div>
+
+    <script>
+        const { invoke } = window.__TAURI__.core;
+        const { listen } = window.__TAURI__.event;
+
+        // Token 复制功能
+        let currentToken = "";
+        function copyToken() {
+            if(currentToken) {
+                navigator.clipboard.writeText(currentToken);
+                alert("令牌已复制");
+            }
+        }
+
+        // [新增] 切换安全模式
+        async function changeMode(mode) {
+            try {
+                // 调用 Rust 后端
+                await invoke('set_token_mode', { mode: mode, currentToken: currentToken });
+                
+                if (mode === 'random') {
+                    // 添加日志提示
+                    const list = document.getElementById('log-list');
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span style="color:var(--danger)">[SECURITY]</span> 已切换至随机模式，重启生效。`;
+                    list.prepend(li);
+                } else {
+                    const list = document.getElementById('log-list');
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span style="color:var(--neon-blue)">[SECURITY]</span> 已切换至固定模式，Token已保存。`;
+                    list.prepend(li);
+                }
+            } catch (error) {
+                console.error("设置失败:", error);
+                alert("设置保存失败: " + error);
+            }
+        }
+
+        async function init() {
+            // 获取 Token
+            try {
+                currentToken = await invoke('get_session_token');
+                document.getElementById('token-display').innerText = currentToken;
+            } catch(e) {
+                console.error(e);
+                document.getElementById('token-display').innerText = "连接失败";
+            }
+
+            // [新增] 初始化单选框状态 (默认选中 Fixed，实际项目中可以从后端获取当前配置)
+            // 这里为了演示，默认让 fixed 选中
+            document.querySelector('input[value="fixed"]').checked = true;
+
+            // 监听数据
+            listen('browser-url', e => document.getElementById('url-display').innerText = e.payload);
+            listen('net-speed', e => {
+                document.getElementById('speed-down').innerText = (e.payload[0] / 1024).toFixed(1);
+            });
+            listen('preload-log', e => {
+                const list = document.getElementById('log-list');
+                const li = document.createElement('li');
+                li.innerHTML = `<span style="color:var(--neon-blue)">[${new Date().toLocaleTimeString().split(' ')[0]}]</span> ${e.payload}`;
+                list.prepend(li);
+            });
+            
+            // 自动修复反馈动画
+            listen('auto-fix-triggered', (event) => {
+                const { type } = event.payload;
+                const dot = document.querySelector('.status-dot');
+                const text = document.querySelector('.status-text');
+                
+                dot.style.background = "var(--neon-blue)";
+                dot.style.boxShadow = "0 0 15px var(--neon-blue)";
+                text.innerText = `⚡ 已自动修复: ${type}`;
+                text.style.color = "var(--neon-blue)";
+                
+                setTimeout(() => {
+                    dot.style.background = "#0f0";
+                    dot.style.boxShadow = "0 0 8px #0f0";
+                    text.innerText = "NeuroFlow 守护中";
+                    text.style.color = "#888";
+                }, 3000);
+            });
+
+            // 按钮逻辑
+            document.getElementById('execute-scan-btn').onclick = async () => {
+                document.getElementById('scan-overlay').classList.remove('hidden');
+                // await invoke('get_background_tabs_list'); // 实际逻辑
+                setTimeout(() => document.getElementById('scan-overlay').classList.add('hidden'), 2000); // 模拟效果
+            };
+            document.getElementById('cancel-scan').onclick = () => {
+                document.getElementById('scan-overlay').classList.add('hidden');
+            };
+
+            // 内存刷新
+            setInterval(async () => {
+                try {
+                    const mem = await invoke('get_memory_usage');
+                    document.getElementById('mem-display').innerText = mem + "%";
+                } catch(e) {}
+            }, 3000);
+
+            // Tab 切换逻辑
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(btn.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

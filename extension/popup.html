@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 320px;
+            background-color: #0d0d0d;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 15px;
+            margin: 0;
+        }
+        h3 { color: #00f2ff; margin: 0 0 15px 0; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        
+        /* 输入框容器 */
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; }
+        input[type="text"] {
+            width: 100%;
+            background: #161616;
+            border: 1px solid #333;
+            color: #00f2ff;
+            padding: 8px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 13px;
+            outline: none;
+            transition: 0.3s;
+        }
+        input[type="text"]:focus { border-color: #00f2ff; box-shadow: 0 0 10px rgba(0,242,255,0.2); }
+        
+        /* [新增] 禁用状态的输入框样式 (连接成功后锁定) */
+        input[type="text"]:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #0a0a0a;
+            border-color: #222;
+            color: #555;
+            box-shadow: none;
+        }
+
+        /* 按钮基础样式 */
+        button {
+            width: 100%;
+            background: linear-gradient(90deg, #00a3ff, #0066ff);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        button:hover { box-shadow: 0 0 15px rgba(0, 163, 255, 0.5); transform: translateY(-1px); }
+        button:active { transform: translateY(1px); }
+
+        /* [新增] 按钮的“已连接”状态 (变成红色断开按钮) */
+        button.connected {
+            background: linear-gradient(90deg, #ff4444, #cc0000);
+        }
+        button.connected:hover {
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.5);
+        }
+        
+        /* 状态显示 */
+        .status-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .dot { 
+            width: 8px; 
+            height: 8px; 
+            background: #444; 
+            border-radius: 50%; 
+            margin-right: 8px; 
+            transition: 0.3s;
+        }
+        
+        /* [关键] 激活状态 - 亮绿色 */
+        .dot.active { 
+            background: #00ff00; 
+            box-shadow: 0 0 8px #00ff00, 0 0 15px rgba(0, 255, 0, 0.5); 
+        }
+        
+        .footer { font-size: 10px; color: #555; text-align: center; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <h3>NeuroFlow Link</h3>
+    
+    <div class="input-group">
+        <label>安全握手令牌 (Security Token)</label>
+        <input type="text" id="token-input" placeholder="粘贴 App 中的 UUID..." autocomplete="off">
+    </div>
+
+    <button id="action-btn">建立神经连接</button>
+
+    <div class="status-box">
+        <span style="color:#aaa">连接状态:</span>
+        <div style="display:flex; align-items:center;">
+            <div id="status-light" class="dot"></div>
+            <span id="status-text">未连接</span>
+        </div>
+    </div>
+
+    <div class="footer">NeuroFlow Extension v1.3</div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

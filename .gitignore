@@ -1,0 +1,60 @@
+# --- Logs (日志) ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Node/Frontend (前端依赖与构建) ---
+node_modules
+dist
+dist-ssr
+build
+*.local
+
+# --- Editor (编辑器配置) ---
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ==========================================
+# 🛡️ NeuroFlow 核心隐私数据 (绝对不能上传)
+# ==========================================
+neuro_token.secret
+neuro_config.json
+user_behavior_db/
+*.db
+*.db-journal
+
+# ==========================================
+# 🦀 Rust & Tauri 构建产物 (体积巨大，必须忽略)
+# ==========================================
+# Rust 编译输出
+target/
+src-tauri/target/
+
+# 备份文件 (你在代码里可能有 .rs.bk)
+**/*.rs.bk
+
+# Cargo 锁文件 (通常 App 需要提交锁文件以锁定版本，但如果你想忽略也可以解开下面这行)
+# Cargo.lock
+
+# ==========================================
+# 🖥️ OS Generated (系统生成文件)
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini

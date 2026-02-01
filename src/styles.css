@@ -1,0 +1,479 @@
+/* --- 基础变量与重置 --- */
+:root {
+  font-family: 'Segoe UI', Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* 统一为深色主题 */
+  color: #e0e0e0;
+  background-color: #0d0d0d;
+
+  /* 定义颜色变量 */
+  --neon-blue: #00f2ff;   /* 确保定义了蓝色 */
+  --neon-purple: #d600ff; /* [新增] 定义赛博紫 */
+  --danger: #ff4d4f;      /* 定义红色 */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 隐藏元素的全局辅助类 */
+.hidden {
+  display: none !important;
+}
+
+/* --- 自定义滚动条 (极客风格) --- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00a3ff;
+}
+
+/* --- 基础组件样式 --- */
+h1, h2, h3, h4 {
+  margin: 0;
+  color: #00f2ff;
+}
+
+a {
+  font-weight: 500;
+  color: #00a3ff;
+  text-decoration: none;
+  transition: 0.25s;
+}
+a:hover {
+  color: #00f2ff;
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+/* --- NeuroFlow 特色组件 --- */
+
+/* 建议卡片 */
+.suggestion-card {
+    background: rgba(0, 163, 255, 0.08);
+    border: 1px solid #00a3ff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    box-shadow: 0 0 15px rgba(0, 163, 255, 0.15);
+    animation: slideIn 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* 霓虹/发光按钮 */
+.glow-button, .btn-primary {
+    background: linear-gradient(135deg, #00a3ff, #0066ff);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.glow-button:hover, .btn-primary:hover {
+    box-shadow: 0 0 20px rgba(0, 163, 255, 0.6);
+    transform: translateY(-1px);
+}
+
+/* 紧急状态效果 */
+.emergency-glow {
+    box-shadow: 0 0 30px rgba(255, 77, 79, 0.5) !important;
+    border: 1px solid #ff4d4f !important;
+    transition: all 0.5s ease;
+}
+
+/* --- 交互扫描遮罩层 (NeuroFlow 风格) --- */
+.neuro-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(8px);
+}
+
+.scan-modal {
+    width: 380px;
+    background: #0d1117;
+    border: 1px solid #00a3ff;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0, 163, 255, 0.2);
+}
+
+/* 雷达容器与扫掠动画 */
+.radar-container {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 25px;
+    position: relative;
+    border: 2px solid rgba(0, 163, 255, 0.2);
+    border-radius: 50%;
+}
+
+.radar-sweep {
+    position: absolute;
+    inset: 0;
+    background: conic-gradient(from 0deg, transparent, rgba(0, 163, 255, 0.6));
+    border-radius: 50%;
+    animation: radar-spin 2s linear infinite;
+}
+
+.radar-sweep::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    width: 4px;
+    height: 50%;
+    background: #00f2ff;
+    box-shadow: 0 0 15px #00f2ff;
+}
+
+@keyframes radar-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 扫描出的标签列表 */
+.neuro-list {
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 20px 0;
+    border-top: 1px solid #222;
+    padding-top: 10px;
+}
+
+.tab-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-bottom: 1px solid #1a1a1a;
+    transition: background 0.2s;
+}
+
+.tab-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-item input[type="checkbox"] {
+    accent-color: #00a3ff;
+    width: 16px; height: 16px;
+}
+
+.tab-title {
+    font-size: 13px;
+    color: #8b949e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 按钮组 */
+.btn-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.btn-secondary:hover {
+    border-color: #8b949e;
+    color: #f0f6fc;
+}
+
+/* 动画定义 */
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.neon-loading {
+    color: #00f2ff;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-top: 10px;
+    text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+}
+
+/* --- [新增补全] 开关组件样式 (修复缺失) --- */
+.switch { position: relative; display: inline-block; width: 34px; height: 18px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; inset: 0; background-color: #333; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #00f2ff; box-shadow: 0 0 10px rgba(0, 242, 255, 0.4); }
+input:checked + .slider:before { transform: translateX(16px); }
+
+/* --- 按钮包装容器 (悬浮提示) --- */
+.scan-btn-container {
+    position: relative;
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* 初始状态：隐藏提示框 */
+.scan-hint-box {
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    width: 260px;
+    background: rgba(13, 17, 23, 0.95);
+    border: 1px solid #00a3ff;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 163, 255, 0.3);
+    backdrop-filter: blur(10px);
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+    z-index: 10000;
+}
+
+/* 鼠标移入容器时显示 */
+.scan-btn-container:hover .scan-hint-box {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* 提示框内容细节 */
+.hint-header { display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+.hint-icon { margin-right: 8px; }
+.hint-title { color: #00f2ff; font-weight: bold; font-size: 13px; }
+.hint-content p { font-size: 11px; color: #888; margin: 5px 0; }
+.hint-content ul { padding-left: 15px; margin: 5px 0; font-size: 11px; color: #ccc; }
+.hint-footer { font-size: 10px; color: #00a3ff; text-align: right; margin-top: 10px; font-style: italic; }
+
+/* 微缩演示动画：模拟神经元波动 */
+.mini-demo-anim {
+    height: 30px;
+    background: #000;
+    border-radius: 4px;
+    margin-top: 10px;
+    position: relative;
+    overflow: hidden;
+}
+.wave {
+    position: absolute;
+    width: 200%;
+    height: 100%;
+    background: repeating-linear-gradient(90deg, transparent, #00a3ff 50%, transparent 100%);
+    background-size: 50% 100%;
+    opacity: 0.2;
+    animation: wave-move 2s linear infinite;
+}
+.wave:nth-child(2) { animation-delay: -1s; opacity: 0.1; }
+
+@keyframes wave-move {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0%); }
+}
+
+#estimate-val {
+    font-weight: bold;
+    color: #00a3ff;
+    text-shadow: 0 0 5px rgba(0, 163, 255, 0.5);
+    transition: color 0.3s ease;
+}
+
+/* 提示框弹出时的微弱发光 */
+.scan-btn-container:hover .scan-hint-box {
+    border-color: #00f2ff;
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+}
+
+/* ... 保持你原有的 CSS ... */
+
+/* [新增] 状态指示灯颜色 */
+.indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ccc; /* 默认灰色 */
+    display: inline-block;
+    margin-left: 8px;
+}
+
+.indicator.on {
+    background-color: #00ff00; /* 亮绿色 */
+    box-shadow: 0 0 8px #00ff00;
+}
+
+/* [新增] 按钮变成红色（断开模式） */
+button.connected {
+    background-color: #ff4444; /* 红色 */
+    border: 1px solid #d32f2f;
+}
+
+button.connected:hover {
+    background-color: #cc0000;
+}
+
+
+
+/* --- [新增] 网络监测双列布局 --- */
+.net-monitor-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 5px 0;
+}
+
+.net-item {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden; /* 为了波形条 */
+}
+
+.net-icon {
+    font-size: 24px;
+    margin-right: 15px;
+    opacity: 0.8;
+}
+
+.net-info {
+    flex: 1;
+    z-index: 2; /* 确保文字在波形条上面 */
+}
+
+.net-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.net-value-group {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+/* 调整原来的大字体，稍微改小一点适配双行 */
+.speed-val {
+    font-size: 28px;
+    font-weight: bold;
+    font-family: 'Consolas', monospace;
+    line-height: 1;
+    color: #fff; /* 默认白色 (用于下行) */
+}
+
+/* [新增] 专门指定上行速度为紫色 */
+#speed-up {
+    color: var(--neon-purple);
+    text-shadow: 0 0 10px rgba(214, 0, 255, 0.3); /* 可选：加一点紫色光晕 */
+}
+
+/* 背景动态条 */
+.net-bar-bg {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: #222;
+}
+.net-bar {
+    height: 100%;
+    width: 0%;
+    transition: width 0.5s ease;
+}
+.net-bar.down { background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); }
+.net-bar.up { background: var(--neon-purple); box-shadow: 0 0 10px var(--neon-purple); }
+
+.speed-val, #mem-display, #health-score {
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* 自定义单选框高亮 */
+input[type="radio"] {
+    appearance: none; /* 去掉默认样式 */
+    width: 14px;
+    height: 14px;
+    border: 1px solid #555;
+    border-radius: 50%;
+    background: #111;
+    position: relative;
+    top: 2px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+/* 选中状态 */
+input[type="radio"]:checked {
+    border-color: var(--neon-blue);
+    background: #111;
+    box-shadow: 0 0 5px var(--neon-blue); /* 发光 */
+}
+
+/* 中间的小点 */
+input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px; height: 6px;
+    background: var(--neon-blue);
+    border-radius: 50%;
+}
+
+/* 针对随机模式（红色/粉色） */
+input[value="random"]:checked {
+    border-color: var(--danger);
+    box-shadow: 0 0 5px var(--danger);
+}
+input[value="random"]:checked::after {
+    background: var(--danger);
+}
+
+@keyframes breathe {
+    0% { box-shadow: 0 0 5px #0f0; opacity: 0.8; }
+    50% { box-shadow: 0 0 15px #0f0; opacity: 1; }
+    100% { box-shadow: 0 0 5px #0f0; opacity: 0.8; }
+}
+.status-dot.active {
+    animation: breathe 2s infinite ease-in-out;
+}
+
+#url-display {
+    color: #e0e0e0; /* 改为浅灰，不刺眼 */
+    background: rgba(0,0,0,0.3); /* 加个深色底衬托 */
+    padding: 4px;
+    border-radius: 4px;
+    border-left: 2px solid var(--neon-blue); /* 左侧加个亮条 */
+}

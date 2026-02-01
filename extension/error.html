@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>NeuroFlow 神经连接中断</title>
+    <style>
+        body { background: #0d0d0d; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .container { text-align: center; width: 600px; padding: 40px; border: 1px solid #ff4d4f; background: rgba(255, 77, 79, 0.05); border-radius: 12px; box-shadow: 0 0 30px rgba(255, 77, 79, 0.1); }
+        h1 { color: #ff4d4f; font-size: 24px; margin-bottom: 10px; }
+        .url { color: #888; font-family: monospace; background: #1a1a1a; padding: 5px 10px; border-radius: 4px; display: inline-block; margin: 20px 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .status { color: #00f2ff; margin-top: 20px; font-weight: bold; }
+        .analyzing { animation: blink 1.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ 神经连接中断</h1>
+        <p>目标服务器无法响应，NeuroFlow 介入接管。</p>
+        <div class="url" id="target-url">Loading...</div>
+        <div class="reason" id="error-code" style="color:#666; font-size:12px;"></div>
+        <div class="status analyzing">📡 正在上传黑匣子数据至 AI 核心...</div>
+        <p style="font-size: 12px; color: #555; margin-top: 30px;">请查看 NeuroFlow 桌面端获取修复建议</p>
+    </div>
+
+    <script>
+        // 解析 URL 参数显示到页面上
+        const params = new URLSearchParams(window.location.search);
+        document.getElementById('target-url').innerText = params.get('url');
+        document.getElementById('error-code').innerText = params.get('reason');
+    </script>
+</body>
+</html>
