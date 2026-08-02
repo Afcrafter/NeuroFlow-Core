@@ -6,29 +6,40 @@ const STORAGE_KEYS = {
     LAST_URL: "last_url"
 };
 
-// --- 核心发送函数 (修复鉴权) ---
-// 适配 Rust 的数据结构，向后端报告行为或错误
+// --- 核心发送函数（Origin = chrome-extension://，配合后端 CORS 白名单） ---
 async function notifyRust(payload, endpoint = "predict") {
-    // 1. 动态获取 Token (解决鉴权失败问题)
     const storage = await chrome.storage.local.get(STORAGE_KEYS.TOKEN);
     const token = storage[STORAGE_KEYS.TOKEN];
 
     if (!token) {
-        // console.warn("后台未配置 Token，跳过上报");
-        return;
+        return { ok: false, error: "no_token" };
     }
 
     try {
-        await fetch(`http://127.0.0.1:3030/${endpoint}`, {
+        const response = await fetch(`http://127.0.0.1:3030/${endpoint}`, {
             method: "POST",
-            headers: { 
+            headers: {
                 "Content-Type": "application/json",
-                "x-neuro-token": token // 💎 [核心修复] 加上身份牌
+                "x-neuro-token": token
             },
             body: JSON.stringify(payload)
         });
+
+        const ct = response.headers.get("content-type") || "";
+        let data = null;
+        if (ct.includes("application/json")) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
+
+        if (!response.ok) {
+            return { ok: false, status: response.status, data };
+        }
+        return { ok: true, status: response.status, data };
     } catch (e) {
-        // 后端未启动时静默处理
+        // 后端未启动时静默
+        return { ok: false, error: String(e) };
     }
 }
 
@@ -161,6 +172,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // F. L2 预加载
     else if (message.type === "L2_PRELOAD" && message.url) {
         executeL2Preload(message.url);
+    }
+
+    // G. content script 代理转发（避免网页 Origin 触发 CORS 拒绝）
+    else if (message.type === "BACKEND_REQUEST") {
+        const endpoint = message.endpoint || "predict";
+        const payload = message.payload || {};
+        notifyRust(payload, endpoint).then((result) => {
+            sendResponse(result);
+        });
+        return true; // 异步
     }
 });
 

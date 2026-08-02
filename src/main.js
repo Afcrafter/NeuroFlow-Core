@@ -1,290 +1,472 @@
+/**
+ * NeuroFlow CORE — 前端唯一逻辑入口
+ * 样式见 styles.css；本文件负责事件监听、网速展示、Token、交互
+ */
+
 const { listen } = window.__TAURI__.event;
 const { invoke } = window.__TAURI__.core;
 
-// --- 全局变量 ---
+// ---------------------------------------------------------------------------
+// 状态
+// ---------------------------------------------------------------------------
+
 let currentToken = "";
+let currentMode = "fixed";
 
-// ==========================================
-// 1. 基础状态监听 (核心数据流)
-// ==========================================
-
-// 监听网速
-// 监听数据
-listen('net-speed', e => {
-    // e.payload 是个数组或元组: [rx, tx]
-    // rx = download, tx = upload
-    // 注意：Rust 传过来的是字节(Bytes)，除以 1024 变成 KB
-    const rx = (e.payload[0] / 1024).toFixed(1);
-    const tx = (e.payload[1] / 1024).toFixed(1);
-
-    // 更新数字
-    document.getElementById('speed-down').innerText = rx;
-    document.getElementById('speed-up').innerText = tx;
-
-    // [新增] 更新底部装饰条的宽度 (简单的视觉效果)
-    // 假设 10MB/s (10240 KB/s) 撑满进度条，做个简单的映射
-    const maxSpeed = 10240; 
-    document.getElementById('bar-down').style.width = Math.min((rx / maxSpeed) * 100, 100) + "%";
-    document.getElementById('bar-up').style.width = Math.min((tx / maxSpeed) * 100, 100) + "%";
-});
-
-// 监听当前焦点 URL
-listen('browser-url', (event) => {
-    // [修复] ID 改为 url-display
-    const el = document.getElementById('url-display');
-    if (el) el.innerText = event.payload || "等待捕获...";
-});
-
-// 监听脉搏/健康度
-listen('network-pulse', e => {
-    const pulse = e.payload; 
-    const scoreEl = document.getElementById('health-score');
-    const barEl = document.getElementById('health-bar');
-    const diagEl = document.getElementById('health-diag');
-    
-    if (scoreEl && barEl) {
-        scoreEl.innerText = pulse.quality_score;
-        barEl.style.width = `${pulse.quality_score}%`;
-        
-        // 动态变色
-        let color = 'var(--neon-blue)';
-        if (pulse.quality_score < 60) color = '#ffeb3b';
-        if (pulse.quality_score < 40) color = '#ff4d4f';
-        
-        scoreEl.style.color = color;
-        barEl.style.background = color;
-    }
-    if (diagEl) diagEl.innerText = pulse.diagnosis || "数据分析中...";
-});
-
-// 监听自动修复反馈
-listen('auto-fix-triggered', (event) => {
-    const { type } = event.payload;
-    const dot = document.querySelector('.status-dot');
-    const text = document.querySelector('.status-text');
-    
-    if (dot && text) {
-        dot.style.background = "var(--neon-blue)";
-        dot.style.boxShadow = "0 0 15px var(--neon-blue)";
-        text.innerText = `⚡ 已修复: ${type}`;
-        text.style.color = "var(--neon-blue)";
-        
-        setTimeout(() => {
-            dot.style.background = "#0f0";
-            dot.style.boxShadow = "0 0 8px #0f0";
-            text.innerText = "NeuroFlow 守护中";
-            text.style.color = "#888";
-        }, 3000);
-    }
-});
-
-// 监听日志流
-listen('preload-log', e => {
-    const list = document.getElementById('log-list');
-    if (list) {
-        const li = document.createElement('li');
-        li.innerHTML = `<span style="color:var(--neon-blue)">[${new Date().toLocaleTimeString().split(' ')[0]}]</span> ${e.payload}`;
-        list.prepend(li);
-        // 保持日志不超过 50 条
-        if (list.children.length > 50) list.lastElementChild.remove();
-    }
-});
-
-// --- [新增] 监听 AI 修复建议 ---
-listen('ai-suggestions', (event) => {
-    const suggestions = event.payload; // 这是一个数组
-    const container = document.querySelector('.col-right'); // 我们把它插到右栏
-
-    suggestions.forEach(item => {
-        // 创建卡片 DOM
-        const card = document.createElement('div');
-        card.className = 'card suggestion-card emergency-glow'; // 用上我们刚写的 CSS 动画
-        card.style.marginTop = "15px";
-        
-        card.innerHTML = `
-            <div style="display:flex; align-items:center; margin-bottom:10px;">
-                <div style="font-size:20px; margin-right:10px;">💡</div>
-                <div>
-                    <h3 style="margin:0; border:none; color:#fff;">${item.title}</h3>
-                    <div style="font-size:11px; color:#ccc;">${item.desc}</div>
-                </div>
-            </div>
-            ${item.button_text ? `
-            <button class="glow-button" style="width:100%; font-size:12px; padding:8px;">
-                ${item.button_text}
-            </button>
-            ` : ''}
-        `;
-
-        // 插入到 Token 卡片之前，或者直接 prepend 到容器最上面
-        if (container) {
-            container.insertBefore(card, container.firstChild);
-        }
-
-        // 绑定按钮点击事件 (如果有 action_type)
-        if (item.action_type) {
-            const btn = card.querySelector('button');
-            if (btn) {
-                btn.onclick = async () => {
-                    btn.innerText = "正在执行...";
-                    btn.disabled = true;
-                    // 这里可以调用后端命令，目前先做视觉反馈
-                    setTimeout(() => {
-                        card.remove(); // 执行完移除卡片
-                        alert(`已执行指令: ${item.action_type}`);
-                    }, 1000);
-                };
-            }
-        }
-    });
-});
-
-// ==========================================
-// 2. 交互逻辑 (按钮与开关)
-// ==========================================
-
-// 智能扫描逻辑
-const scanBtn = document.getElementById('execute-scan-btn');
-const overlay = document.getElementById('scan-overlay');
-const cancelScanBtn = document.getElementById('cancel-scan');
-
-if (scanBtn && overlay) {
-    scanBtn.onclick = async () => {
-        overlay.classList.remove('hidden');
-        // 模拟扫描过程 + 真实调用
-        setTimeout(async () => {
-           try {
-               // 这里可以调用 get_background_tabs_list 如果你需要处理返回数据
-               // 目前仅做视觉演示
-               overlay.classList.add('hidden');
-               addLog("智能扫描完成，资源已优化");
-           } catch(e) {
-               overlay.classList.add('hidden');
-           }
-        }, 2000);
-    };
-}
-
-if (cancelScanBtn) {
-    cancelScanBtn.onclick = () => overlay.classList.add('hidden');
-}
-
-// AI 权限开关逻辑
-document.querySelectorAll('.ai-perm, #mcp-toggle').forEach(el => {
-    el.onchange = async () => {
-        const settings = {
-            // [注意] 这里的字段名必须和 Rust 里的 McpSettings 结构体完全一致
-            ai_enabled: document.getElementById('mcp-toggle')?.checked ?? true,
-            allow_tab_freeze: document.getElementById('perm-freeze')?.checked ?? true,
-            allow_network_fix: document.getElementById('perm-net')?.checked ?? false,
-            auto_execute: document.getElementById('perm-auto')?.checked ?? false,
-            auth_token: currentToken // 把当前 Token 带回去，防止覆盖
-        };
-        
-        try {
-            await invoke('update_mcp_settings', { settings });
-            const logMsg = settings.ai_enabled ? "AI 核心策略已更新" : "AI 核心已暂停";
-            addLog(logMsg);
-        } catch (e) {
-            console.error("更新设置失败:", e);
-        }
-    };
-});
-
-// 紧急修复按钮 (GPU 清理)
-const fixBtn = document.getElementById('btn-emergency-fix');
-if (fixBtn) {
-    fixBtn.addEventListener('click', async () => {
-        const feedbackBox = document.getElementById('fix-feedback');
-        const msgEl = document.getElementById('fix-msg');
-        const statusText = document.getElementById('gpu-status-text');
-
-        fixBtn.disabled = true;
-        fixBtn.style.opacity = '0.6';
-        if(feedbackBox) feedbackBox.style.display = 'block';
-        if(msgEl) {
-            msgEl.innerHTML = "正在挂起渲染进程...<br>>_ 扫描 ShaderCache...";
-            msgEl.style.color = '#ccc';
-        }
-
-        try {
-            const response = await invoke('clean_gpu_cache');
-            if(msgEl) msgEl.innerHTML += `<br>>_ <span style="color:#00f2ff">${response}</span>`;
-            if(statusText) {
-                statusText.innerText = "系统已净化";
-                statusText.style.color = "#00f2ff";
-            }
-        } catch (error) {
-            if(msgEl) msgEl.innerHTML += `<br>>_ <span style="color:#ff4d4f">失败: ${error}</span>`;
-        } finally {
-            setTimeout(() => {
-                fixBtn.disabled = false;
-                fixBtn.style.opacity = '1';
-            }, 3000);
-        }
-    });
-}
-
-// 内存轮询 (可选)
-setInterval(async () => {
-    try {
-        const memEl = document.getElementById('mem-display');
-        if (memEl) {
-            // 假设 Rust 端有一个 get_memory_usage 命令返回百分比或字符串
-            // 如果没有，可以先忽略
-            // const mem = await invoke('get_memory_usage');
-            // memEl.innerText = mem;
-        }
-    } catch(e) {}
-}, 5000);
-
-// ==========================================
-// 3. 辅助函数
-// ==========================================
-
-function addLog(msg) {
-    const list = document.getElementById('log-list');
-    if (list) {
-        const li = document.createElement('li');
-        li.innerText = `[AI] ${msg}`;
-        list.prepend(li);
-    }
-}
-
-// Token 复制
-window.copyToken = function() { // 挂载到 window 供 HTML onclick 调用
-    if (currentToken) {
-        navigator.clipboard.writeText(currentToken).then(() => {
-            alert("令牌已复制！");
-        });
-    }
+/** 自适应峰值（字节/秒），用于进度条映射，避免固定 10MB 失真 */
+const ratePeak = {
+  down: 256 * 1024, // 起步 256 KB/s
+  up: 128 * 1024,
+  minDown: 64 * 1024,
+  minUp: 32 * 1024,
 };
 
-// ==========================================
-// 4. 初始化执行
-// ==========================================
+// ---------------------------------------------------------------------------
+// 工具
+// ---------------------------------------------------------------------------
 
-async function init() {
-    // 1. 获取 Token (统一逻辑)
-    try {
-        currentToken = await invoke('get_session_token');
-        const el = document.getElementById('token-display');
-        if (el) {
-            el.innerText = currentToken;
-            // 存入 LocalStorage 方便调试
-            localStorage.setItem('neuro_token', currentToken);
-        }
-    } catch (e) {
-        console.error("无法获取令牌:", e);
-        const el = document.getElementById('token-display');
-        if (el) el.innerText = "连接服务失败";
-    }
-
-    // 2. 加载用户规则 (如果 Rust 端实现了 get_manual_rules)
-    // loadSavedRules(); 
-
-    addLog("NeuroFlow 内核已连接");
+/**
+ * 将 B/s 格式化为合适单位
+ * @param {number} bytesPerSec
+ * @returns {{ value: string, unit: string, bps: number }}
+ */
+function formatRate(bytesPerSec) {
+  const bps = Math.max(0, Number(bytesPerSec) || 0);
+  if (bps < 1024) {
+    return { value: bps.toFixed(0), unit: "B/s", bps };
+  }
+  if (bps < 1024 * 1024) {
+    return { value: (bps / 1024).toFixed(1), unit: "KB/s", bps };
+  }
+  return { value: (bps / (1024 * 1024)).toFixed(2), unit: "MB/s", bps };
 }
 
-// 页面加载完毕后启动
-window.addEventListener('DOMContentLoaded', init);
+/**
+ * 自适应进度条百分比（峰值缓慢衰减，突发抬升）
+ */
+function barPercent(bps, kind) {
+  const key = kind === "up" ? "up" : "down";
+  const minKey = kind === "up" ? "minUp" : "minDown";
+  // 峰值：取 max(当前, 衰减后的旧峰值, 最小值)
+  ratePeak[key] = Math.max(ratePeak[minKey], bps, ratePeak[key] * 0.92);
+  if (ratePeak[key] <= 0) return 0;
+  return Math.min(100, Math.round((bps / ratePeak[key]) * 100));
+}
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function addLog(msg, tag = "AI") {
+  const list = $("log-list");
+  if (!list) return;
+  const li = document.createElement("li");
+  const time = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+  li.innerHTML = `<span class="log-tag">[${tag}]</span> <span class="log-time">${time}</span> ${msg}`;
+  list.prepend(li);
+  while (list.children.length > 50) {
+    list.removeChild(list.lastElementChild);
+  }
+}
+
+function applyTokenToUi(token, mode) {
+  currentToken = token || "";
+  if (mode) {
+    currentMode = String(mode).toLowerCase();
+  }
+  const el = $("token-display");
+  if (el) el.textContent = currentToken || "无令牌";
+  try {
+    localStorage.setItem("neuro_token", currentToken);
+  } catch (_) {}
+  const radio = document.querySelector(
+    `input[name="token_mode"][value="${currentMode}"]`
+  );
+  if (radio) radio.checked = true;
+}
+
+/**
+ * 更新上下行数字 + 单位 + 进度条
+ * @param {number} rxBps 下行 B/s
+ * @param {number} txBps 上行 B/s
+ */
+function updateSpeedUi(rxBps, txBps) {
+  const down = formatRate(rxBps);
+  const up = formatRate(txBps);
+
+  const sd = $("speed-down");
+  const su = $("speed-up");
+  const ud = $("unit-down");
+  const uu = $("unit-up");
+  const bd = $("bar-down");
+  const bu = $("bar-up");
+
+  if (sd) sd.textContent = down.value;
+  if (su) su.textContent = up.value;
+  if (ud) ud.textContent = down.unit;
+  if (uu) uu.textContent = up.unit;
+  if (bd) bd.style.width = `${barPercent(down.bps, "down")}%`;
+  if (bu) bu.style.width = `${barPercent(up.bps, "up")}%`;
+}
+
+/**
+ * 解析 net-speed payload：兼容 [rx,tx] / {0,1} / 对象
+ */
+function parseNetSpeedPayload(payload) {
+  if (payload == null) return { rx: 0, tx: 0 };
+  if (Array.isArray(payload)) {
+    return { rx: Number(payload[0]) || 0, tx: Number(payload[1]) || 0 };
+  }
+  if (typeof payload === "object") {
+    // serde 元组有时序列化为 { "0": rx, "1": tx }
+    if ("0" in payload || "1" in payload) {
+      return {
+        rx: Number(payload[0] ?? payload["0"]) || 0,
+        tx: Number(payload[1] ?? payload["1"]) || 0,
+      };
+    }
+    return {
+      rx: Number(payload.rx ?? payload.download ?? 0) || 0,
+      tx: Number(payload.tx ?? payload.upload ?? 0) || 0,
+    };
+  }
+  return { rx: 0, tx: 0 };
+}
+
+// ---------------------------------------------------------------------------
+// 事件监听（只注册一次）
+// ---------------------------------------------------------------------------
+
+function setupListeners() {
+  // 网速：后端已是 B/s（2 秒间隔的字节差 / 2）
+  listen("net-speed", (e) => {
+    const { rx, tx } = parseNetSpeedPayload(e.payload);
+    updateSpeedUi(rx, tx);
+  });
+
+  listen("browser-url", (e) => {
+    const el = $("url-display");
+    if (el) el.textContent = e.payload || "等待捕获...";
+  });
+
+  listen("network-pulse", (e) => {
+    const pulse = e.payload || {};
+    const score = Number(pulse.quality_score) || 0;
+    const scoreEl = $("health-score");
+    const barEl = $("health-bar");
+    const diagEl = $("health-diag");
+
+    if (scoreEl) scoreEl.textContent = `${score}`;
+    if (barEl) {
+      barEl.style.width = `${Math.min(100, score)}%`;
+      let color = "var(--neon-blue)";
+      if (score < 60) color = "var(--warning)";
+      if (score < 40) color = "var(--danger)";
+      barEl.style.background = color;
+      scoreEl && (scoreEl.style.color = color);
+    }
+    if (diagEl) {
+      const dns = pulse.dns_time_ms != null ? `${pulse.dns_time_ms}ms DNS` : "";
+      const tcp =
+        pulse.tcp_handshake_ms != null ? `${pulse.tcp_handshake_ms}ms TCP` : "";
+      const detail = [dns, tcp].filter(Boolean).join(" · ");
+      diagEl.textContent = pulse.diagnosis
+        ? detail
+          ? `${pulse.diagnosis}（${detail}）`
+          : pulse.diagnosis
+        : "数据分析中…";
+    }
+  });
+
+  listen("network-mode", (e) => {
+    const mode = e.payload;
+    if (mode === "LOW_DATA") {
+      addLog("已切换至省流模式 (移动网络)", "NET");
+    } else if (mode === "HIGH_SPEED") {
+      addLog("已恢复极速模式", "NET");
+    }
+  });
+
+  listen("memory-warning", (e) => {
+    addLog(`内存告警：占用约 ${e.payload}%`, "MEM");
+  });
+
+  listen("preload-log", (e) => {
+    addLog(String(e.payload ?? ""), "LOG");
+  });
+
+  listen("auto-fix-triggered", (e) => {
+    const type = e.payload?.type ?? e.payload ?? "unknown";
+    const dot = $("status-dot");
+    const text = $("status-text");
+    if (dot) {
+      dot.classList.add("alert");
+      dot.classList.remove("active");
+    }
+    if (text) {
+      text.textContent = `已修复: ${type}`;
+      text.style.color = "var(--neon-blue)";
+    }
+    setTimeout(() => {
+      if (dot) {
+        dot.classList.remove("alert");
+        dot.classList.add("active");
+      }
+      if (text) {
+        text.textContent = "NeuroFlow 守护中";
+        text.style.color = "";
+      }
+    }, 3000);
+  });
+
+  listen("ai-suggestions", (e) => {
+    const suggestions = Array.isArray(e.payload) ? e.payload : [];
+    const container = document.querySelector(".col-right");
+    if (!container) return;
+
+    suggestions.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "card suggestion-card emergency-glow";
+      card.innerHTML = `
+        <div class="s-head">
+          <div class="s-icon">💡</div>
+          <div>
+            <h3 class="s-title">${escapeHtml(item.title || "建议")}</h3>
+            <div class="s-desc">${escapeHtml(item.desc || "")}</div>
+          </div>
+        </div>
+        ${
+          item.button_text
+            ? `<button type="button" class="glow-button">${escapeHtml(
+                item.button_text
+              )}</button>`
+            : ""
+        }
+      `;
+      container.insertBefore(card, container.firstChild);
+
+      if (item.action_type) {
+        const btn = card.querySelector("button");
+        if (btn) {
+          btn.onclick = async () => {
+            btn.disabled = true;
+            btn.textContent = "执行中…";
+            try {
+              await invoke("execute_fix_action", {
+                actionType: item.action_type,
+              });
+              addLog(`已执行: ${item.action_type}`, "FIX");
+            } catch (err) {
+              addLog(`执行失败: ${err}`, "ERR");
+            } finally {
+              card.remove();
+            }
+          };
+        }
+      }
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// ---------------------------------------------------------------------------
+// 交互绑定
+// ---------------------------------------------------------------------------
+
+function setupUi() {
+  // Tabs
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".tab-btn")
+        .forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll(".tab-content")
+        .forEach((c) => c.classList.remove("active"));
+      btn.classList.add("active");
+      const panel = $(btn.dataset.tab);
+      if (panel) panel.classList.add("active");
+    });
+  });
+
+  // Token
+  $("btn-copy-token")?.addEventListener("click", () => {
+    if (!currentToken) return;
+    navigator.clipboard.writeText(currentToken).then(
+      () => addLog("令牌已复制到剪贴板", "SEC"),
+      () => alert("复制失败")
+    );
+  });
+
+  $("btn-rotate-token")?.addEventListener("click", async () => {
+    try {
+      const newToken = await invoke("rotate_token");
+      applyTokenToUi(newToken, currentMode);
+      addLog("令牌已轮换，请同步到插件", "SEC");
+    } catch (err) {
+      alert("轮换失败: " + err);
+    }
+  });
+
+  document.querySelectorAll('input[name="token_mode"]').forEach((radio) => {
+    radio.addEventListener("change", async () => {
+      if (!radio.checked) return;
+      const mode = radio.value;
+      try {
+        const newToken = await invoke("set_token_mode", {
+          mode,
+          currentToken,
+        });
+        applyTokenToUi(newToken, mode);
+        addLog(
+          mode === "random"
+            ? "随机模式：令牌已轮换（请同步插件）"
+            : "固定模式：Token 已落盘",
+          "SEC"
+        );
+      } catch (err) {
+        alert("设置失败: " + err);
+      }
+    });
+  });
+
+  // 扫描
+  const overlay = $("scan-overlay");
+  $("execute-scan-btn")?.addEventListener("click", async () => {
+    overlay?.classList.remove("hidden");
+    try {
+      const est = await invoke("get_estimated_savings");
+      const estEl = $("estimate-val");
+      if (estEl) estEl.textContent = est;
+      await invoke("get_background_tabs_list");
+      addLog("智能扫描已触发", "SCAN");
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setTimeout(() => overlay?.classList.add("hidden"), 1800);
+    }
+  });
+  $("cancel-scan")?.addEventListener("click", () => {
+    overlay?.classList.add("hidden");
+  });
+
+  // 急救
+  $("btn-emergency-fix")?.addEventListener("click", async () => {
+    const btn = $("btn-emergency-fix");
+    const feedback = $("fix-feedback");
+    const msgEl = $("fix-msg");
+    const statusText = $("gpu-status-text");
+
+    if (btn) btn.disabled = true;
+    feedback?.classList.add("show");
+    if (msgEl) msgEl.textContent = "正在扫描 ShaderCache…";
+
+    try {
+      const response = await invoke("clean_gpu_cache");
+      if (msgEl) msgEl.textContent = String(response);
+      if (statusText) statusText.textContent = "系统已净化";
+      addLog(String(response), "GPU");
+    } catch (error) {
+      if (msgEl) msgEl.textContent = "失败: " + error;
+      addLog("GPU 清理失败: " + error, "ERR");
+    } finally {
+      setTimeout(() => {
+        if (btn) btn.disabled = false;
+      }, 2500);
+    }
+  });
+
+  // 手动规则
+  $("add-rule-btn")?.addEventListener("click", async () => {
+    const source = $("source-domain")?.value?.trim();
+    const target = $("target-sub")?.value?.trim();
+    if (!source || !target) {
+      alert("请填写主域名与预载子域");
+      return;
+    }
+    try {
+      await invoke("save_manual_rule", {
+        source,
+        target,
+        allowCookie: false,
+      });
+      addLog(`规则已添加: ${source} → ${target}`, "RULE");
+      if ($("source-domain")) $("source-domain").value = "";
+      if ($("target-sub")) $("target-sub").value = "";
+    } catch (e) {
+      alert("添加失败: " + e);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 轮询
+// ---------------------------------------------------------------------------
+
+function startPolling() {
+  // 内存：后端返回可读字符串，不再错误追加 %
+  const refreshMem = async () => {
+    try {
+      const mem = await invoke("get_memory_usage");
+      const el = $("mem-display");
+      if (el) el.textContent = mem;
+    } catch (_) {}
+  };
+  refreshMem();
+  setInterval(refreshMem, 4000);
+
+  // 悬停估算
+  const scanBtn = $("execute-scan-btn");
+  if (scanBtn) {
+    scanBtn.addEventListener("mouseenter", async () => {
+      try {
+        const est = await invoke("get_estimated_savings");
+        const el = $("estimate-val");
+        if (el) el.textContent = est;
+      } catch (_) {}
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 启动
+// ---------------------------------------------------------------------------
+
+async function init() {
+  setupListeners();
+  setupUi();
+  startPolling();
+
+  try {
+    const info = await invoke("get_token_info");
+    const mode = (info.mode || "fixed").toString().toLowerCase();
+    applyTokenToUi(info.token, mode);
+  } catch (e) {
+    try {
+      const t = await invoke("get_session_token");
+      applyTokenToUi(t, "fixed");
+    } catch (e2) {
+      if ($("token-display")) $("token-display").textContent = "连接失败";
+    }
+  }
+
+  // 初始网速显示 0
+  updateSpeedUi(0, 0);
+  addLog("NeuroFlow 内核已连接", "SYSTEM");
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+
+// 供调试
+window.__neuroflow = { formatRate, updateSpeedUi, applyTokenToUi };

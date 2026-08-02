@@ -10,56 +10,37 @@ const CONFIG = {
 // 全局状态
 let state = {
     lastHeartbeat: 0,
-    hoverTimer: null,
-    token: null
+    hoverTimer: null
 };
 
 // ==========================================
-// 2. 统一通讯层 (Communication Layer)
+// 2. 统一通讯层（经 background 转发，Origin 为扩展源）
 // ==========================================
 
-// 初始化：尝试从存储加载 Token
-chrome.storage.local.get("neuro_token", (res) => {
-    if (res.neuro_token) state.token = res.neuro_token;
-});
-
 /**
- * 通用安全请求发送器
+ * 经 Service Worker 转发到本地后端（配合收紧后的 CORS）
  * @param {string} endpoint - 路由端点 (e.g. 'mcp', 'predict')
  * @param {object} payload - 发送的数据
  */
 async function sendBackendRequest(endpoint, payload) {
-    // 动态获取 Token (双重保险)
-    if (!state.token) {
-        const res = await chrome.storage.local.get("neuro_token");
-        state.token = res.neuro_token;
-    }
-    
-    // 如果还是没 Token，用硬编码调试 (仅限开发环境)
-    const DEBUG_TOKEN = "这里填入你App界面的Token进行调试"; 
-    const finalToken = state.token || DEBUG_TOKEN;
-
-    if (!finalToken) return; // 没证件不准通行
-
     try {
-        const response = await fetch(`http://127.0.0.1:3030/${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-neuro-token': finalToken // 统一带上令牌
-            },
-            body: JSON.stringify(payload)
+        const result = await chrome.runtime.sendMessage({
+            type: "BACKEND_REQUEST",
+            endpoint,
+            payload
         });
 
-        // 针对 MCP 协议的特殊处理
-        if (endpoint === 'mcp') {
-            const data = await response.json();
-            if (data.result && data.result.status === "Ignored") {
-                console.warn(`[NeuroFlow] 隐私熔断: ${data.result.reason}`);
+        if (!result || !result.ok) {
+            return;
+        }
+
+        if (endpoint === "mcp" && result.data && result.data.result) {
+            if (result.data.result.status === "Ignored") {
+                console.warn(`[NeuroFlow] 隐私熔断: ${result.data.result.reason}`);
             }
         }
     } catch (e) {
-        // 静默失败，避免控制台飘红
+        // 静默失败
     }
 }
 

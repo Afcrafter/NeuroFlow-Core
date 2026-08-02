@@ -4,15 +4,15 @@
   "version": "1.0.0",
   "identifier": "com.neuroflow.core",
   "build": {
-    "frontendDist": "../src",
-    "devUrl": "http://localhost:1420"
+    "frontendDist": "../src"
+    
   },
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "NeuroFlow Core", 
-        "width": 1000, 
+        "title": "NeuroFlow Core",
+        "width": 1000,
         "height": 700,
         "resizable": true,
         "fullscreen": false
@@ -32,7 +32,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": [
+      "../extension"
+    ],
     "copyright": "© 2026 NeuroFlow Dev",
-    "shortDescription": "赛博朋克风格的智能网络监控系统"
+    "shortDescription": "智能网络监控及优化系统"
   }
 }
