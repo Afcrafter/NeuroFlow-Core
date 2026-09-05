@@ -174,13 +174,24 @@ impl TokenMode {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     pub token_mode: TokenMode,
+    /// 关闭窗口时最小化到托盘（服务继续后台运行），默认开启
+    #[serde(default)]
+    pub close_to_tray: Option<bool>,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
             token_mode: TokenMode::Fixed,
+            close_to_tray: None,
         }
+    }
+}
+
+impl AppConfig {
+    /// 关闭窗口时的默认行为：最小化到托盘（后台服务不中断）
+    pub fn close_to_tray(&self) -> bool {
+        self.close_to_tray.unwrap_or(true)
     }
 }
 

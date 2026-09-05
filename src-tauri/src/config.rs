@@ -157,7 +157,8 @@ pub async fn set_token_mode(
     state: State<'_, Arc<RwLock<McpSettings>>>,
 ) -> Result<String, String> {
     let mode = TokenMode::parse(&mode)?;
-    let config = AppConfig { token_mode: mode };
+    let mut config = load_app_config();
+    config.token_mode = mode;
     save_app_config(&config)?;
 
     let active_token = match mode {
@@ -201,4 +202,37 @@ pub async fn rotate_token(
 
     set_memory_token(&state, new_token.clone()).await;
     Ok(new_token)
+}
+
+// ---------------------------------------------------------------------------
+// 窗口行为配置
+// ---------------------------------------------------------------------------
+
+/// 是否「关闭窗口 → 驻留托盘」（服务继续后台运行）
+pub fn close_to_tray_enabled() -> bool {
+    load_app_config().close_to_tray()
+}
+
+/// 写入关闭行为配置
+pub fn set_close_to_tray(enabled: bool) -> Result<(), String> {
+    let mut config = load_app_config();
+    config.close_to_tray = Some(enabled);
+    save_app_config(&config)
+}
+
+/// 供托盘开关查询：当前是否驻留托盘
+#[tauri::command]
+pub fn get_close_to_tray() -> bool {
+    close_to_tray_enabled()
+}
+
+/// 供托盘开关写入：同步落盘 + 内存（立即影响下次关闭窗口）
+#[tauri::command]
+pub fn set_close_to_tray_cmd(
+    enabled: bool,
+    state: State<'_, crate::CloseToTray>,
+) -> Result<(), String> {
+    set_close_to_tray(enabled)?;
+    state.0.store(enabled, std::sync::atomic::Ordering::Relaxed);
+    Ok(())
 }

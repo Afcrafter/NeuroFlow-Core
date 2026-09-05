@@ -4,6 +4,7 @@
 //! - **CORS 白名单**：仅扩展协议 + Tauri / localhost，禁止任意网页跨域
 
 use std::convert::Infallible;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use sled::Db;
@@ -36,6 +37,12 @@ impl Reject for Unauthorized {}
 struct CorsForbidden;
 
 impl Reject for CorsForbidden {}
+
+/// 服务暂停时所有业务路由统一 503
+#[derive(Debug)]
+struct ServicePaused;
+
+impl Reject for ServicePaused {}
 
 // ---------------------------------------------------------------------------
 // CORS 白名单
@@ -175,6 +182,8 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         (StatusCode::UNAUTHORIZED, "invalid or missing x-neuro-token")
     } else if err.find::<CorsForbidden>().is_some() {
         (StatusCode::FORBIDDEN, "origin not allowed")
+    } else if err.find::<ServicePaused>().is_some() {
+        (StatusCode::SERVICE_UNAVAILABLE, "service paused")
     } else if err.is_not_found() {
         (StatusCode::NOT_FOUND, "not found")
     } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
@@ -199,6 +208,22 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     Ok(warp::reply::with_status(warp::reply::json(&body), code))
 }
 
+/// 服务启停闸门：暂停时所有业务路由返回 503，扩展感知为「服务离线」
+fn enabled_guard(
+    enabled: Arc<AtomicBool>,
+) -> impl Filter<Extract = ((),), Error = Rejection> + Clone {
+    warp::any().and_then(move || {
+        let enabled = enabled.clone();
+        async move {
+            if enabled.load(Ordering::Relaxed) {
+                Ok(())
+            } else {
+                Err(warp::reject::custom(ServicePaused))
+            }
+        }
+    })
+}
+
 // ---------------------------------------------------------------------------
 // 服务启动
 // ---------------------------------------------------------------------------
@@ -208,6 +233,7 @@ pub fn spawn_warp_server(
     app: tauri::AppHandle,
     db: Arc<Db>,
     mcp_settings: Arc<RwLock<McpSettings>>,
+    service_enabled: Arc<AtomicBool>,
 ) {
     tokio::spawn(async move {
         let warp_app_handle = app.clone();
@@ -217,6 +243,7 @@ pub fn spawn_warp_server(
 
         let auth = with_auth(mcp_settings.clone());
         let guard = origin_guard();
+        let en_guard = enabled_guard(service_enabled.clone());
 
         // --- 1. 预测 / 预加载 ---
         let predict_route = warp::post()
@@ -224,11 +251,12 @@ pub fn spawn_warp_server(
             .and(warp::path::end())
             .and(guard.clone())
             .and(auth.clone())
+            .and(en_guard.clone())
             .and(warp::body::json())
             .map({
                 let app = warp_app_handle.clone();
                 let db = db_for_warp.clone();
-                move |_g: (), _auth: (), p: NavigationPayload| {
+                move |_g: (), _auth: (), _s: (), p: NavigationPayload| {
                     smart_preload_v2(db.clone(), &app, p);
                     "OK"
                 }
@@ -240,10 +268,11 @@ pub fn spawn_warp_server(
             .and(warp::path::end())
             .and(guard.clone())
             .and(auth.clone())
+            .and(en_guard.clone())
             .and(warp::body::json())
             .map({
                 let app = warp_app_handle.clone();
-                move |_g: (), _auth: (), r: ErrorReport| {
+                move |_g: (), _auth: (), _s: (), r: ErrorReport| {
                     start_diagnosis(&app, r);
                     "OK"
                 }
@@ -255,10 +284,11 @@ pub fn spawn_warp_server(
             .and(warp::path::end())
             .and(guard.clone())
             .and(auth.clone())
+            .and(en_guard.clone())
             .and(warp::body::json())
             .map({
                 let app = warp_app_handle.clone();
-                move |_g: (), _auth: (), tabs: Vec<serde_json::Value>| {
+                move |_g: (), _auth: (), _s: (), tabs: Vec<serde_json::Value>| {
                     let _ = app.emit("receive-tabs-from-plugin", tabs);
                     "OK"
                 }
@@ -270,8 +300,9 @@ pub fn spawn_warp_server(
             .and(warp::path::end())
             .and(guard.clone())
             .and(auth.clone())
+            .and(en_guard.clone())
             .and(warp::body::json())
-            .and_then(move |_g: (), _auth: (), req: McpRequest| {
+            .and_then(move |_g: (), _auth: (), _s: (), req: McpRequest| {
                 let a = mcp_handle.clone();
                 let db = db_for_warp.clone();
                 let s = mcp_settings_for_warp.clone();
@@ -302,11 +333,15 @@ pub fn spawn_warp_server(
                     }
 
                     let response = match req.method.as_str() {
-                        "ping" => McpResponse {
-                            jsonrpc: "2.0".into(),
-                            result: serde_json::json!({"status": "pong"}),
-                            id: req.id,
-                        },
+                        "ping" => {
+                            // 扩展心跳：通知 UI 显示「扩展已接入」
+                            let _ = a.emit("extension-ping", ());
+                            McpResponse {
+                                jsonrpc: "2.0".into(),
+                                result: serde_json::json!({"status": "pong"}),
+                                id: req.id,
+                            }
+                        }
                         "get_system_status" => {
                             let mut sys = System::new();
                             sys.refresh_memory();

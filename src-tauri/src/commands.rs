@@ -1,12 +1,14 @@
 //! Tauri 前端可调用的命令
 
 use std::process::Command;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use sled::Db;
 use sysinfo::System;
-use tauri::Emitter;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State, WebviewWindow};
+
+use crate::{CloseToTray, ServiceEnabled};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -144,3 +146,138 @@ pub async fn clean_gpu_cache() -> Result<String, String> {
 }
 
 // Token 相关命令见 `config` 模块：get_session_token / get_token_info / set_token_mode / rotate_token
+
+// ---------------------------------------------------------------------------
+// 服务启停（本地 Warp 服务闸门）
+// ---------------------------------------------------------------------------
+
+/// 启用 / 暂停本地服务；返回新状态并广播 `service-state` 事件
+#[tauri::command]
+pub fn set_service_enabled(app: AppHandle, enabled: bool, state: State<'_, ServiceEnabled>) -> bool {
+    state.0.store(enabled, Ordering::Relaxed);
+    let _ = app.emit("service-state", enabled);
+    enabled
+}
+
+/// 查询本地服务当前是否启用
+#[tauri::command]
+pub fn get_service_state(state: State<'_, ServiceEnabled>) -> bool {
+    state.0.load(Ordering::Relaxed)
+}
+
+// ---------------------------------------------------------------------------
+// 系统信息
+// ---------------------------------------------------------------------------
+
+/// 当前内存占用百分比（0–100）
+#[tauri::command]
+pub fn get_memory_percent() -> f64 {
+    let mut sys = System::new();
+    sys.refresh_memory();
+    let total = sys.total_memory().max(1);
+    (sys.used_memory() as f64 / total as f64) * 100.0
+}
+
+/// 应用版本号（来自 tauri.conf.json）
+#[tauri::command]
+pub fn get_app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+// ---------------------------------------------------------------------------
+// 开机自启（Windows 注册表 Run 键）
+// ---------------------------------------------------------------------------
+
+#[cfg(target_os = "windows")]
+const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+#[cfg(target_os = "windows")]
+const AUTOSTART_NAME: &str = "NeuroFlowCore";
+
+/// 设置开机自启（指向当前可执行文件）
+#[tauri::command]
+pub fn set_autostart(enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_str = format!("\"{}\"", exe.display());
+        let mut cmd = Command::new("reg");
+        if enabled {
+            cmd.args([
+                "add",
+                RUN_KEY,
+                "/v",
+                AUTOSTART_NAME,
+                "/t",
+                "REG_SZ",
+                "/d",
+                &exe_str,
+                "/f",
+            ]);
+        } else {
+            cmd.args(["delete", RUN_KEY, "/v", AUTOSTART_NAME, "/f"]);
+        }
+        let status = cmd.status().map_err(|e| format!("reg 执行失败: {e}"))?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("注册表写入失败（exit: {:?}）", status.code()))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = enabled;
+        Err("当前系统不支持开机自启".into())
+    }
+}
+
+/// 查询开机自启是否已开启
+#[tauri::command]
+pub fn get_autostart() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let out = Command::new("reg")
+            .args(["query", RUN_KEY, "/v", AUTOSTART_NAME])
+            .output()
+            .map_err(|e| e.to_string())?;
+        Ok(out.status.success())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 窗口控制（自定义标题栏用）
+// ---------------------------------------------------------------------------
+
+/// 最小化主窗口
+#[tauri::command]
+pub fn ui_minimize(window: WebviewWindow) -> Result<(), String> {
+    window.minimize().map_err(|e| e.to_string())
+}
+
+/// 关闭主窗口：驻留托盘模式则隐藏（服务继续运行），否则彻底退出
+#[tauri::command]
+pub fn ui_close(
+    window: WebviewWindow,
+    app: AppHandle,
+    close_to_tray: State<'_, CloseToTray>,
+) -> Result<(), String> {
+    if close_to_tray.0.load(Ordering::Relaxed) && window.label() == "main" {
+        window.hide().map_err(|e| e.to_string())?;
+        let _ = app.emit("to-tray", ());
+        Ok(())
+    } else {
+        window.close().map_err(|e| e.to_string())
+    }
+}
+
+/// 调整主窗口尺寸（展开 / 收起详情面板）
+#[tauri::command]
+pub fn ui_resize(window: WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    window
+        .set_size(tauri::LogicalSize::new(width, height))
+        .map_err(|e| e.to_string())
+}

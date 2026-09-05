@@ -12,10 +12,14 @@
     "windows": [
       {
         "title": "NeuroFlow Core",
-        "width": 1000,
-        "height": 700,
+        "width": 780,
+        "height": 236,
+        "minWidth": 620,
+        "minHeight": 236,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": false,
+        "center": true
       }
     ],
     "security": {
