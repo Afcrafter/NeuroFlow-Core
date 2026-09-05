@@ -530,3 +530,97 @@ input:checked + .slider::before { transform: translateX(15px); background: #fff;
 @media (max-width: 620px) {
   .detail-grid { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   复制令牌成功态（按钮本体变绿，不弹消息）
+   ========================================================================== */
+.act-btn.copied {
+  border-color: rgba(53, 201, 142, 0.65);
+  background: linear-gradient(135deg, rgba(53, 201, 142, 0.32), rgba(53, 201, 142, 0.12));
+  color: #d9ffef;
+}
+.act-btn.copied:hover { background: linear-gradient(135deg, rgba(53, 201, 142, 0.38), rgba(53, 201, 142, 0.16)); }
+.act-btn.copied .act-ico { color: var(--green); }
+
+.btn-mini.ok-mini { color: #35c98e; border-color: rgba(53, 201, 142, 0.55); background: var(--green-soft); }
+.btn-mini.bad-mini { color: #ff9090; border-color: rgba(255, 107, 107, 0.55); background: var(--red-soft); }
+
+/* 主界面扩展状态：可点击提醒 */
+.ext-state.warn { color: var(--amber); cursor: pointer; text-decoration: underline dotted; }
+.ext-state.warn:hover { color: #ffd38a; }
+
+/* ==========================================================================
+   扩展安装引导（设置页）
+   ========================================================================== */
+.link-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(240, 180, 76, 0.10);
+  border: 1px solid rgba(240, 180, 76, 0.5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 8px 0 2px;
+  color: #ffd9a0;
+  font-size: 11.5px;
+}
+.lb-ico { font-size: 13px; flex-shrink: 0; }
+.lb-text { flex: 1; min-width: 0; }
+.link-banner .btn-mini {
+  border-color: rgba(240, 180, 76, 0.6);
+  color: #ffe0b3;
+  background: rgba(240, 180, 76, 0.15);
+  flex-shrink: 0;
+}
+.link-banner .btn-mini:hover { background: rgba(240, 180, 76, 0.28); }
+
+.link-status { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.gs-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+.gs-dot.on { background: var(--green); box-shadow: 0 0 8px rgba(53, 201, 142, 0.7); }
+.gs-dot.off { background: var(--amber); box-shadow: 0 0 7px rgba(240, 180, 76, 0.55); }
+.gs-text { font-size: 12px; color: var(--dim); }
+.gs-text.on { color: var(--green); }
+
+.btn-mini.ghost-rm {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--dim);
+  margin-left: auto;
+}
+.btn-mini.ghost-rm:hover { color: var(--text); background: var(--btn); }
+
+.link-warn {
+  border: 1px dashed rgba(240, 180, 76, 0.55);
+  background: rgba(240, 180, 76, 0.06);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.lw-title { color: #ffd9a0; font-size: 11.5px; font-weight: 600; margin-bottom: 2px; }
+.lw-desc { color: var(--dim); font-size: 10.5px; }
+
+.install-guide b { color: #ffdba1; font-weight: 600; }
+
+.guide-actions { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; }
+.guide-path {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  color: #7fd8b0;
+  background: var(--bg-inset);
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  border-radius: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+.pair-divider { border-top: 1px dashed var(--line); margin: 14px 0 12px; }
+.set-block-title.small { font-size: 11px; margin-bottom: 8px; }
+
+.set-block.flash { animation: blockFlash 1.6s ease; }
+@keyframes blockFlash {
+  0%, 55% { box-shadow: 0 0 0 2px rgba(91, 140, 255, 0.45); border-radius: 8px; }
+  100% { box-shadow: 0 0 0 0 rgba(91, 140, 255, 0); }
+}

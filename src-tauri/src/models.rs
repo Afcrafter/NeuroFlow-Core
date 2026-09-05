@@ -203,3 +203,12 @@ pub struct TokenInfo {
     /// 是否已写入 `neuro_token.secret`
     pub persisted: bool,
 }
+
+/// 扩展接入状态（供 UI 提醒安装 / 引导连接）
+#[derive(Debug, Serialize, Clone)]
+pub struct LinkState {
+    /// 近 2 分钟内是否收到过扩展请求（predict / 心跳 / ping）
+    pub connected: bool,
+    /// 最近一次扩展请求的 unix 毫秒时间戳；0 = 从未接入
+    pub last_seen_ms: i64,
+}

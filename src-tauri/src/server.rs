@@ -4,8 +4,9 @@
 //! - **CORS 白名单**：仅扩展协议 + Tauri / localhost，禁止任意网页跨域
 
 use std::convert::Infallible;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use sled::Db;
 use sysinfo::System;
@@ -155,16 +156,24 @@ fn restricted_cors() -> warp::cors::Builder {
 // 鉴权
 // ---------------------------------------------------------------------------
 
-/// 可 Clone 的鉴权过滤器：恒定时间比较 + 热读 `McpSettings`
+/// 可 Clone 的鉴权过滤器：恒定时间比较 + 热读 `McpSettings`；
+/// 鉴权成功即打点 `last_seen`，用于前端判断“扩展是否接入”（提醒安装/连接）
 fn with_auth(
     settings: Arc<RwLock<McpSettings>>,
+    last_seen: Arc<AtomicI64>,
 ) -> impl Filter<Extract = ((),), Error = Rejection> + Clone {
     warp::header::optional::<String>("x-neuro-token").and_then(move |maybe: Option<String>| {
         let settings = settings.clone();
+        let last_seen = last_seen.clone();
         async move {
             let expected = settings.read().await.auth_token.clone();
             match maybe {
                 Some(token) if !token.is_empty() && tokens_equal(token.trim(), expected.trim()) => {
+                    let ms = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map(|d| d.as_millis() as i64)
+                        .unwrap_or(0);
+                    last_seen.store(ms, Ordering::Relaxed);
                     Ok(())
                 }
                 _ => Err(warp::reject::custom(Unauthorized)),
@@ -234,6 +243,7 @@ pub fn spawn_warp_server(
     db: Arc<Db>,
     mcp_settings: Arc<RwLock<McpSettings>>,
     service_enabled: Arc<AtomicBool>,
+    link_last_seen: Arc<AtomicI64>,
 ) {
     tokio::spawn(async move {
         let warp_app_handle = app.clone();
@@ -241,7 +251,7 @@ pub fn spawn_warp_server(
         let db_for_warp = db.clone();
         let mcp_settings_for_warp = mcp_settings.clone();
 
-        let auth = with_auth(mcp_settings.clone());
+        let auth = with_auth(mcp_settings.clone(), link_last_seen);
         let guard = origin_guard();
         let en_guard = enabled_guard(service_enabled.clone());
 

@@ -120,14 +120,52 @@ function refreshExtState() {
   const el = $("ext-state");
   const st = $("ext-status");
   if (el) {
-    if (!svcEnabled) { el.textContent = "服务已暂停"; el.className = "ext-state alert"; }
-    else if (extOnline) { el.textContent = "扩展已接入 · 心跳正常"; el.className = "ext-state linked"; }
-    else { el.textContent = "等待扩展接入…"; el.className = "ext-state"; }
+    if (!svcEnabled) { el.textContent = "服务已暂停"; el.className = "ext-state alert"; el.title = ""; }
+    else if (extOnline) { el.textContent = "扩展已接入 · 心跳正常"; el.className = "ext-state linked"; el.title = ""; }
+    else { el.textContent = "扩展未接入 · 点击安装"; el.className = "ext-state warn"; el.title = "打开设置中的扩展安装引导"; }
   }
   if (st) {
     if (!svcEnabled) { st.textContent = "服务已暂停"; st.className = ""; }
     else if (extOnline) { st.textContent = "● 已接入（心跳正常）"; st.className = "on"; }
     else { st.textContent = "等待接入…"; st.className = ""; }
+  }
+}
+
+/** 应用扩展接入状态（主界面提醒 + 设置页引导区 + 横幅） */
+function applyLinkUi(connected) {
+  extOnline = connected;
+  refreshExtState();
+  const dot = $("guide-dot");
+  const txt = $("guide-text");
+  const warn = $("link-warn");
+  const ban = $("banner-link");
+  if (!svcEnabled) {
+    if (dot) dot.className = "gs-dot off";
+    if (txt) { txt.textContent = "服务已暂停，暂不检测扩展"; txt.className = "gs-text"; }
+    if (warn) warn.classList.add("hidden");
+    if (ban) ban.classList.add("hidden");
+    return;
+  }
+  if (connected) {
+    if (dot) dot.className = "gs-dot on";
+    if (txt) { txt.textContent = "NeuroFlow Link 已连接（心跳正常）"; txt.className = "gs-text on"; }
+    if (warn) warn.classList.add("hidden");
+    if (ban) ban.classList.add("hidden");
+  } else {
+    if (dot) dot.className = "gs-dot off";
+    if (txt) { txt.textContent = "未检测到扩展活动"; txt.className = "gs-text"; }
+    if (warn) warn.classList.remove("hidden");
+    if (ban) ban.classList.remove("hidden");
+  }
+}
+
+/** 轮询后端记录的扩展最近活动时间 */
+async function refreshLink() {
+  try {
+    const st = await invoke("get_link_state");
+    applyLinkUi(Boolean(st && st.connected));
+  } catch (_) {
+    applyLinkUi(extOnline);
   }
 }
 
@@ -215,18 +253,15 @@ function setupListeners() {
 
   listen("service-state", (e) => {
     setServiceUi(Boolean(e.payload));
+    applyLinkUi(extOnline);
     addLog(e.payload ? "本地服务已启动" : "本地服务已暂停", "SVC");
   });
 
-  // 扩展心跳回显
+  // 扩展心跳回显：有活动即视为已接入
   listen("extension-ping", () => {
-    const now = Date.now();
-    if (!extOnline) {
-      extOnline = true;
-      addLog("浏览器扩展已接入（完成安全握手）", "LINK");
-    }
-    if (now - lastExtMsgAt > 60000) lastExtMsgAt = now;
-    refreshExtState();
+    if (!extOnline) addLog("浏览器扩展已接入（完成安全握手）", "LINK");
+    lastExtMsgAt = Date.now();
+    applyLinkUi(true);
   });
 
   listen("to-tray", () => {
@@ -274,18 +309,49 @@ function setupUi() {
   // 设置窗口：返回 = 关闭设置窗口
   $("btn-back")?.addEventListener("click", () => invoke("ui_close").catch(() => {}));
 
-  // 复制令牌（主窗口）
+  // 复制令牌（主窗口）：成功 → 按钮本体变绿“令牌已复制”，不弹消息
+  let copyBusy = false;
+  const ICO_KEY = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="6.5" cy="9.5" r="3.4"/><path d="M9 8l4.4-4.4M11.6 5.4l1.8 1.8"/></svg>`;
+  const ICO_OK = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.6 6.4 12 13 4.6"/></svg>`;
   $("btn-token")?.addEventListener("click", async () => {
+    if (copyBusy) return;
     if (!currentToken) { toast("令牌尚未就绪，请稍后重试", "bad"); return; }
     const ok = await copyText(currentToken);
-    toast(ok ? "令牌已复制，粘贴到浏览器扩展即可配对" : "复制失败，请到设置中手动复制", ok ? "good" : "bad");
+    if (!ok) { toast("复制失败，请到设置中手动复制", "bad"); return; }
+    copyBusy = true;
+    const btn = $("btn-token");
+    const ico = $("btn-token-ico");
+    const lbl = $("btn-token-label");
+    if (btn) btn.classList.add("copied");
+    if (ico) ico.innerHTML = ICO_OK;
+    if (lbl) lbl.textContent = "令牌已复制";
+    setTimeout(() => {
+      if (btn) btn.classList.remove("copied");
+      if (ico) ico.innerHTML = ICO_KEY;
+      if (lbl) lbl.textContent = "复制令牌";
+      copyBusy = false;
+    }, 2200);
   });
 
-  // 令牌操作（设置窗口）
+  // 令牌操作（设置窗口）：小按钮本体变“已复制”，不弹消息
+  let sCopyBusy = false;
   $("settings-copy")?.addEventListener("click", async () => {
+    if (sCopyBusy) return;
     if (!currentToken) return;
     const ok = await copyText(currentToken);
-    toast(ok ? "令牌已复制到剪贴板" : "复制失败", ok ? "good" : "bad");
+    const b = $("settings-copy");
+    sCopyBusy = true;
+    if (b) {
+      b.textContent = ok ? "已复制" : "失败";
+      b.classList.add(ok ? "ok-mini" : "bad-mini");
+    }
+    setTimeout(() => {
+      if (b) {
+        b.textContent = "复制";
+        b.classList.remove("ok-mini", "bad-mini");
+      }
+      sCopyBusy = false;
+    }, 1600);
   });
 
   $("settings-rotate")?.addEventListener("click", async () => {
@@ -385,6 +451,61 @@ function setupUi() {
     }
   });
 
+  // 主界面扩展状态：未接入时点击 → 打开设置安装引导
+  $("ext-state")?.addEventListener("click", () => {
+    if (svcEnabled && !extOnline) {
+      invoke("open_settings_window").catch(() => {});
+    }
+  });
+
+  // 设置页：扩展安装引导
+  $("btn-refresh-link")?.addEventListener("click", refreshLink);
+
+  $("guide-open-folder")?.addEventListener("click", async () => {
+    try {
+      const p = await invoke("open_extension_folder");
+      const el = $("guide-path");
+      if (el) el.textContent = p;
+      toast("已在资源管理器中打开扩展目录", "good");
+    } catch (e) {
+      toast(`打开失败: ${e}`, "bad");
+    }
+  });
+
+  $("guide-copy-path")?.addEventListener("click", async () => {
+    try {
+      let p = $("guide-path")?.textContent || "";
+      if (!p || p === "—") {
+        p = await invoke("get_extension_dir");
+        const el = $("guide-path");
+        if (el) el.textContent = p;
+      }
+      const ok = await copyText(p);
+      const b = $("guide-copy-path");
+      if (b) {
+        const old = b.textContent;
+        b.textContent = ok ? "已复制" : "失败";
+        b.classList.add(ok ? "ok-mini" : "bad-mini");
+        setTimeout(() => {
+          b.textContent = old;
+          b.classList.remove("ok-mini", "bad-mini");
+        }, 1500);
+      }
+    } catch (e) {
+      toast(`获取路径失败: ${e}`, "bad");
+    }
+  });
+
+  // 横幅：去安装引导（平滑滚动 + 高亮）
+  $("btn-goto-guide")?.addEventListener("click", () => {
+    const el = $("pair-block");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.classList.add("flash");
+      setTimeout(() => el.classList.remove("flash"), 1800);
+    }
+  });
+
   // 设置窗口内 ESC 关闭
   if (IS_SETTINGS) {
     document.addEventListener("keydown", (e) => {
@@ -409,6 +530,10 @@ function startPolling() {
   };
   refreshMem();
   setInterval(refreshMem, 4000);
+
+  // 扩展接入状态轮询（后端打点：近 120s 内有请求即已接入）
+  refreshLink();
+  setInterval(refreshLink, 10000);
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +542,16 @@ function startPolling() {
 
 async function init() {
   // 设置窗口模式由 <head> 内联脚本尽早标记（html.settings-mode），此处不再重复设类
+
+  // 设置窗口：把「扩展安装与连接」区块移到最前（紧跟提醒横幅），保证引导优先可见
+  if (IS_SETTINGS) {
+    const bodyEl = document.querySelector(".page-body");
+    const pair = document.getElementById("pair-block");
+    const firstSet = bodyEl ? bodyEl.querySelector(".set-block") : null;
+    if (bodyEl && pair && firstSet && firstSet !== pair) {
+      bodyEl.insertBefore(pair, firstSet);
+    }
+  }
 
   setupListeners();
   setupUi();

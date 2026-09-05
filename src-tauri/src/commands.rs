@@ -8,7 +8,7 @@ use sled::Db;
 use sysinfo::System;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-use crate::{CloseToTray, ServiceEnabled};
+use crate::{CloseToTray, LinkSeen, ServiceEnabled};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -274,7 +274,63 @@ pub fn ui_close(
     }
 }
 
-/// 打开独立设置窗口（已存在则唤起并聚焦）
+/// 扩展接入状态（阈值：近 120 秒内有活动视为已连接）
+#[tauri::command]
+pub fn get_link_state(state: State<'_, LinkSeen>) -> crate::models::LinkState {
+    let last = state.0.load(Ordering::Relaxed);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    crate::models::LinkState {
+        connected: last > 0 && now - last < 120_000,
+        last_seen_ms: last,
+    }
+}
+
+/// 定位 extension 目录（供安装引导 / 资源管理器打开）
+fn find_extension_dir() -> Option<String> {
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    // 编译期项目路径（dev / 本机构建均有效）
+    if let Ok(manifest) = std::env::var("CARGO_MANIFEST_DIR") {
+        candidates.push(std::path::PathBuf::from(manifest).join("../extension"));
+    }
+    // 运行时可执行文件相对路径兜底
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(d) = exe.parent() {
+            candidates.push(d.join("../../../extension"));
+            candidates.push(d.join("../../extension"));
+            candidates.push(d.join("../extension"));
+        }
+    }
+    for c in candidates {
+        if c.join("manifest.json").exists() {
+            return Some(c.to_string_lossy().into_owned());
+        }
+    }
+    None
+}
+
+/// 获取扩展目录绝对路径（UI 展示 / 复制用）
+#[tauri::command]
+pub fn get_extension_dir() -> Result<String, String> {
+    find_extension_dir().ok_or_else(|| "未找到 extension 目录，请确认项目完整".to_string())
+}
+
+/// 在资源管理器中打开扩展目录（引导用户「加载已解压的扩展程序」）
+#[tauri::command]
+pub fn open_extension_folder() -> Result<String, String> {
+    let dir = find_extension_dir().ok_or_else(|| "未找到 extension 目录，请确认项目完整".to_string())?;
+    #[cfg(target_os = "windows")]
+    {
+        let _ = Command::new("explorer").arg(&dir).spawn();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = Command::new("open").arg(&dir).spawn();
+    }
+    Ok(dir)
+}
 /// 注意：必须 async——同步命令跑在主线程，直接建房会与主循环互等导致 UI 卡死
 #[tauri::command]
 pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {

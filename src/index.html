@@ -67,10 +67,10 @@
       </button>
 
       <button id="btn-token" class="act-btn" title="复制安全握手令牌，粘贴到浏览器扩展">
-        <span class="act-ico blue">
+        <span class="act-ico blue" id="btn-token-ico">
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="6.5" cy="9.5" r="3.4"/><path d="M9 8l4.4-4.4M11.6 5.4l1.8 1.8"/></svg>
         </span>
-        <span>复制令牌</span>
+        <span id="btn-token-label">复制令牌</span>
       </button>
 
       <button id="btn-settings" class="act-btn" title="打开设置窗口：运行详情 / 令牌配对 / 常规 / 关于">
@@ -97,6 +97,13 @@
     </div>
 
     <div class="page-body">
+
+      <!-- 扩展未接入提醒横幅（点击直达安装引导） -->
+      <div id="banner-link" class="link-banner hidden">
+        <span class="lb-ico">⚠</span>
+        <span class="lb-text">未检测到 NeuroFlow Link 扩展 — 浏览器加速尚未生效</span>
+        <button id="btn-goto-guide" class="btn-mini">去安装引导</button>
+      </div>
 
       <!-- ① 运行详情（原「详情」面板内容） -->
       <section class="set-block">
@@ -157,11 +164,39 @@
         </div>
       </section>
 
-      <!-- ② 令牌配对（保持原貌） -->
-      <section class="set-block">
-        <div class="set-block-title">🔑 扩展配对 <span class="hint">SECURITY TOKEN</span></div>
+      <!-- ② 扩展安装与连接（引导 + 令牌配对） -->
+      <section class="set-block" id="pair-block">
+        <div class="set-block-title">🔌 扩展安装与连接 <span class="hint">NEUROFLOW LINK</span></div>
+
+        <div class="link-status">
+          <span class="gs-dot off" id="guide-dot"></span>
+          <span class="gs-text" id="guide-text">检测扩展接入状态…</span>
+          <button id="btn-refresh-link" class="btn-mini ghost-rm">重新检测</button>
+        </div>
+
+        <div class="link-warn hidden" id="link-warn">
+          <div class="lw-title">⚠ 尚未检测到 NeuroFlow Link 扩展</div>
+          <div class="lw-desc">安装并连接后本状态自动变绿，浏览器加速即生效。按下面四步操作：</div>
+        </div>
+
+        <ol class="guide install-guide">
+          <li>点击下方 <b>「打开扩展目录」</b>，记下资源管理器中弹出的 <span class="mono">extension</span> 文件夹位置</li>
+          <li>打开 Chrome / Edge 扩展管理页（地址栏输入 <span class="mono">chrome://extensions</span> 或 <span class="mono">edge://extensions</span>），开启右上角「开发者模式」</li>
+          <li>点「加载已解压的扩展程序」→ 选择该 <span class="mono">extension</span> 文件夹 → 工具栏出现 NeuroFlow 图标</li>
+          <li>点击图标 → 粘贴下方「令牌配对」中的令牌 → 连接，状态立即变绿</li>
+        </ol>
+
+        <div class="guide-actions">
+          <button id="guide-open-folder" class="btn-mini accent">📂 打开扩展目录</button>
+          <button id="guide-copy-path" class="btn-mini">复制路径</button>
+          <span id="guide-path" class="guide-path mono">—</span>
+        </div>
+
+        <div class="pair-divider"></div>
+
+        <div class="set-block-title small">🔑 令牌配对 <span class="hint">SECURITY TOKEN</span></div>
         <div class="set-row">
-          <span class="set-label">安全握手令牌</span>
+          <span class="set-label">安全握手令牌（粘贴到扩展弹窗完成连接）</span>
           <div class="token-box">
             <span id="settings-token" class="token-value mono">正在获取…</span>
             <button id="settings-copy" class="btn-mini">复制</button>
@@ -184,11 +219,6 @@
             </div>
           </label>
         </div>
-        <ol class="guide">
-          <li>Chrome / Edge 打开 <span class="mono">扩展管理页</span>，开启「开发者模式」</li>
-          <li>「加载已解压的扩展程序」→ 选择项目 <span class="mono">extension/</span> 目录</li>
-          <li>点击工具栏 NeuroFlow 图标 → 粘贴上方令牌 → 连接</li>
-        </ol>
       </section>
 
       <!-- ③ 常规选项 -->

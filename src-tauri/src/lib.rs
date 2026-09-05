@@ -23,7 +23,7 @@ mod privacy;
 mod server;
 mod utils;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 
 use sled::Db;
@@ -33,10 +33,11 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{Emitter, Manager};
 
 use commands::{
-    clean_gpu_cache, execute_fix_action, execute_specific_freeze, get_app_version,
-    get_autostart, get_background_tabs_list, get_estimated_savings, get_manual_rules,
-    get_memory_percent, get_memory_usage, get_service_state, open_settings_window, save_manual_rule,
-    set_autostart, set_service_enabled, ui_close, ui_minimize, ui_resize,
+    clean_gpu_cache, execute_fix_action, execute_specific_freeze, get_app_version, get_autostart,
+    get_background_tabs_list, get_estimated_savings, get_extension_dir, get_link_state,
+    get_manual_rules, get_memory_percent, get_memory_usage, get_service_state, open_extension_folder,
+    open_settings_window, save_manual_rule, set_autostart, set_service_enabled, ui_close,
+    ui_minimize, ui_resize,
 };
 use config::{
     close_to_tray_enabled, get_close_to_tray, get_session_token, get_token_info,
@@ -52,6 +53,9 @@ pub struct ServiceEnabled(pub Arc<AtomicBool>);
 
 /// 托管状态包装：关闭窗口时是否驻留托盘
 pub struct CloseToTray(pub Arc<AtomicBool>);
+
+/// 托管状态包装：扩展最近活动时间戳（unix 毫秒，0 = 从未接入）
+pub struct LinkSeen(pub Arc<AtomicI64>);
 
 /// 应用主入口（由 `main.rs` 调用）
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -107,6 +111,8 @@ async fn run_async() {
     let service_enabled = Arc::new(AtomicBool::new(true));
     // 关闭窗口 → 驻留托盘（默认开）
     let close_to_tray = Arc::new(AtomicBool::new(close_to_tray_enabled()));
+    // 扩展最近活动时间（server 鉴权成功即打点；0 = 从未接入）
+    let link_last_seen = Arc::new(AtomicI64::new(0));
 
     // =======================================================
     // 3. 构建 Tauri App
@@ -115,8 +121,9 @@ async fn run_async() {
         .plugin(tauri_plugin_opener::init())
         .manage(db.clone())
         .manage(mcp_settings.clone())
-        .manage(ServiceEnabled(service_enabled.clone()))
+                .manage(ServiceEnabled(service_enabled.clone()))
         .manage(CloseToTray(close_to_tray.clone()))
+        .manage(LinkSeen(link_last_seen.clone()))
         .invoke_handler(tauri::generate_handler![
             get_memory_usage,
             get_memory_percent,
@@ -140,6 +147,9 @@ async fn run_async() {
             ui_close,
             ui_resize,
             open_settings_window,
+            get_link_state,
+            get_extension_dir,
+            open_extension_folder,
             get_close_to_tray,
             set_close_to_tray_cmd,
         ])
@@ -169,6 +179,7 @@ async fn run_async() {
         db.clone(),
         mcp_settings.clone(),
         service_enabled.clone(),
+        link_last_seen,
     );
 
     // =======================================================
