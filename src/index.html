@@ -9,13 +9,15 @@
 </head>
 <body>
 
-  <!-- ================= 主面板（紧凑控制条） ================= -->
-  <div class="app-shell" id="app-shell">
+  <!-- =====================================================
+       主视图：极简紧凑控制条（启动/复制令牌/设置）
+       ===================================================== -->
+  <div class="view-main" id="view-main">
 
-    <!-- 标题栏（可拖拽） -->
+    <!-- 标题栏 -->
     <header class="titlebar" data-tauri-drag-region>
       <div class="brand" data-tauri-drag-region>
-        <svg class="brand-logo" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <svg class="brand-logo" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
           <defs>
             <linearGradient id="lg-brand" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0" stop-color="#6ea8ff"/>
@@ -27,39 +29,35 @@
         </svg>
         <span class="brand-name">NeuroFlow</span>
         <span class="brand-tag">CORE</span>
-        <span class="brand-ver" id="brand-ver">v1.0.0</span>
+        <span class="brand-ver mono" id="brand-ver">v1.0.0</span>
       </div>
       <div class="win-controls">
         <button id="win-min" class="win-btn" title="最小化" aria-label="最小化">
-          <svg viewBox="0 0 12 12" width="12" height="12"><path d="M2 6.2h8" stroke="currentColor" stroke-width="1.1"/></svg>
+          <svg viewBox="0 0 12 12" width="11" height="11"><path d="M2 6.2h8" stroke="currentColor" stroke-width="1.1"/></svg>
         </button>
         <button id="win-close" class="win-btn win-close" title="关闭到托盘（服务继续运行）" aria-label="关闭">
-          <svg viewBox="0 0 12 12" width="12" height="12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.1"/></svg>
+          <svg viewBox="0 0 12 12" width="11" height="11"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.1"/></svg>
         </button>
       </div>
     </header>
 
-    <!-- 服务状态主区 -->
-    <section class="hero">
-      <div class="hero-status">
+    <!-- 服务状态单行 -->
+    <section class="status-strip">
+      <div class="ss-left">
         <div class="svc-dot" id="svc-dot"></div>
-        <div class="hero-text">
-          <div class="svc-title" id="svc-title">本地加速服务运行中</div>
-          <div class="svc-sub mono" id="svc-sub">已监听 127.0.0.1:3030 · 等待浏览器扩展接入…</div>
-        </div>
+        <span class="svc-title" id="svc-title">服务运行中</span>
+        <span class="svc-port mono" id="svc-port">127.0.0.1:3030</span>
       </div>
-      <div class="hero-chips">
-        <div class="chip" title="实时下行速率"><span class="chip-ico down">↓</span><span class="mono" id="chip-down">0 KB/s</span></div>
-        <div class="chip" title="实时上行速率"><span class="chip-ico up">↑</span><span class="mono" id="chip-up">0 KB/s</span></div>
-        <div class="chip" title="系统内存占用"><span class="chip-ico ram">▦</span><span class="mono" id="chip-ram">—</span></div>
+      <div class="ss-right">
+        <span class="ext-state" id="ext-state">等待扩展接入…</span>
       </div>
     </section>
 
-    <!-- 操作按钮区（Steamcommunity 302 风格） -->
+    <!-- 三个操作板块 -->
     <nav class="actions">
       <button id="btn-service" class="act-btn service-on" title="启停本地加速服务">
         <span class="act-ico" id="btn-service-ico">
-          <svg viewBox="0 0 16 16" width="13" height="13"><rect x="3.4" y="3.4" width="9.2" height="9.2" rx="1.6" fill="currentColor"/></svg>
+          <svg viewBox="0 0 16 16" width="12" height="12"><rect x="3.4" y="3.4" width="9.2" height="9.2" rx="1.6" fill="currentColor"/></svg>
         </span>
         <span id="btn-service-label">停止服务</span>
       </button>
@@ -68,198 +66,180 @@
 
       <button id="btn-token" class="act-btn" title="复制安全握手令牌，粘贴到浏览器扩展">
         <span class="act-ico blue">
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="6.5" cy="9.5" r="3.4"/><path d="M9 8l4.4-4.4M11.6 5.4l1.8 1.8"/></svg>
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="6.5" cy="9.5" r="3.4"/><path d="M9 8l4.4-4.4M11.6 5.4l1.8 1.8"/></svg>
         </span>
         <span>复制令牌</span>
       </button>
 
-      <button id="btn-settings" class="act-btn" title="设置与扩展配对">
+      <button id="btn-settings" class="act-btn" title="设置：运行详情 / 令牌配对 / 常规 / 关于">
         <span class="act-ico gray">
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><circle cx="8" cy="8" r="2.1"/><path d="M8 2.4v1.7M8 11.9v1.7M2.4 8h1.7M11.9 8h1.7M4 4l1.2 1.2M10.8 10.8 12 12M12 4l-1.2 1.2M5.2 10.8 4 12"/></svg>
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><circle cx="8" cy="8" r="2.1"/><path d="M8 2.4v1.7M8 11.9v1.7M2.4 8h1.7M11.9 8h1.7M4 4l1.2 1.2M10.8 10.8 12 12M12 4l-1.2 1.2M5.2 10.8 4 12"/></svg>
         </span>
         <span>设置</span>
       </button>
-
-      <button id="btn-about" class="act-btn" title="关于">
-        <span class="act-ico blue">
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.6"/><path d="M8 7.4v3M8 5.2v.2"/></svg>
-        </span>
-        <span>关于</span>
-      </button>
-
-      <div class="actions-spacer"></div>
-
-      <button id="btn-detail" class="act-btn ghost" title="展开 / 收起运行详情">
-        <span class="act-ico gray">
-          <svg class="chev-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.2 8 10l4-3.8"/></svg>
-        </span>
-        <span id="btn-detail-label">详情</span>
-      </button>
     </nav>
-
-    <!-- 详情面板（展开后显示，承载原仪表盘能力） -->
-    <section class="detail-panel" id="detail-panel" aria-hidden="true">
-      <div class="detail-grid">
-
-        <div class="mini-card">
-          <div class="mc-head">实时网速 <span class="mc-hint">NET I/O</span></div>
-          <div class="rate-row">
-            <div class="rate-label down">↓ 下行</div>
-            <div class="rate-nums"><span id="speed-down" class="mono">0.0</span><span id="unit-down" class="unit">KB/s</span></div>
-            <div class="track"><div id="bar-down" class="bar down"></div></div>
-          </div>
-          <div class="rate-row">
-            <div class="rate-label up">↑ 上行</div>
-            <div class="rate-nums"><span id="speed-up" class="mono">0.0</span><span id="unit-up" class="unit">KB/s</span></div>
-            <div class="track"><div id="bar-up" class="bar up"></div></div>
-          </div>
-        </div>
-
-        <div class="mini-card">
-          <div class="mc-head">链路健康 <span class="mc-hint" id="health-score">检测中…</span></div>
-          <div class="track tall"><div id="health-bar" class="bar health"></div></div>
-          <div class="health-diag" id="health-diag">等待网络脉搏…</div>
-        </div>
-
-        <div class="mini-card">
-          <div class="mc-head">当前焦点</div>
-          <div id="url-display" class="url-display mono">等待捕获…</div>
-          <div class="stat-line"><span>系统内存</span><span id="mem-display" class="mono">读取中…</span></div>
-        </div>
-
-        <div class="mini-card">
-          <div class="mc-head">预载规则 <span class="mc-hint">MANUAL</span></div>
-          <div class="rule-form">
-            <input type="text" id="source-domain" placeholder="主域名 bilibili.com" />
-            <span class="rule-arrow">→</span>
-            <input type="text" id="target-sub" placeholder="预载 message" />
-          </div>
-          <button id="add-rule-btn" class="btn-mini">添加规则</button>
-        </div>
-
-        <div class="mini-card">
-          <div class="mc-head">系统维护</div>
-          <div class="maintain-row">
-            <button id="btn-emergency-fix" class="btn-mini danger">🚑 一键急救</button>
-            <button id="btn-scan" class="btn-mini accent">⚡ 智能扫描</button>
-            <span class="est" id="estimate-val">—</span>
-          </div>
-          <div id="fix-msg" class="fix-msg mono">就绪。</div>
-        </div>
-
-        <div class="mini-card log-card">
-          <div class="mc-head">决策日志</div>
-          <ul id="log-list"><li><span class="log-tag">[SYSTEM]</span> 核心引擎已就绪…</li></ul>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- 底部状态栏 -->
-    <footer class="statusbar">
-      <span class="status-dot-mini" id="status-dot-mini"></span>
-      <span class="status-msg mono" id="status-msg">服务已启动 · 转发至本地加速通道</span>
-      <span class="status-right mono" id="status-right">等待扩展接入…</span>
-    </footer>
   </div>
 
-  <!-- ================= 设置对话框 ================= -->
-  <div class="overlay hidden" id="settings-overlay">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="设置">
-      <div class="modal-head">
-        <div class="modal-title">设置</div>
-        <button class="modal-x" data-close="settings-overlay" aria-label="关闭">✕</button>
-      </div>
-      <div class="modal-body">
+  <!-- =====================================================
+       设置页（整页视图）：运行详情 · 令牌配对 · 常规 · 关于
+       ===================================================== -->
+  <div class="page-settings hidden" id="page-settings">
 
-        <section class="set-group">
-          <div class="set-group-title">🔑 浏览器扩展配对</div>
-          <div class="set-row">
-            <span class="set-label">安全握手令牌</span>
-            <div class="token-box">
-              <span id="settings-token" class="token-value mono">正在获取…</span>
-              <button id="settings-copy" class="btn-mini">复制</button>
-              <button id="settings-rotate" class="btn-mini warn">轮换</button>
-            </div>
-          </div>
-          <div class="radio-group">
-            <label class="radio-option">
-              <input type="radio" name="token_mode" value="fixed" />
-              <div class="radio-body">
-                <div class="option-title">固定模式 <span class="tag green">省心</span></div>
-                <div class="option-desc">Token 落盘保存，重启后扩展无需重新配对</div>
-              </div>
-            </label>
-            <label class="radio-option">
-              <input type="radio" name="token_mode" value="random" />
-              <div class="radio-body">
-                <div class="option-title">随机模式 <span class="tag red">高安</span></div>
-                <div class="option-desc">每次启动自动轮换，需在扩展中重新粘贴</div>
-              </div>
-            </label>
-          </div>
-          <ol class="guide">
-            <li>Chrome / Edge 打开 <span class="mono">扩展管理页</span>，开启「开发者模式」</li>
-            <li>「加载已解压的扩展程序」→ 选择本项目 <span class="mono">extension/</span> 目录</li>
-            <li>点击工具栏 NeuroFlow 图标 → 粘贴上方令牌 → 连接</li>
-          </ol>
-        </section>
-
-        <section class="set-group">
-          <div class="set-group-title">⚙ 常规选项</div>
-          <div class="switch-row">
-            <div class="switch-info">
-              <div class="switch-name">开机自启</div>
-              <div class="switch-desc">登录 Windows 后自动运行（默认驻留托盘）</div>
-            </div>
-            <label class="switch"><input type="checkbox" id="opt-autostart" /><span class="slider"></span></label>
-          </div>
-          <div class="switch-row">
-            <div class="switch-info">
-              <div class="switch-name">关闭窗口驻留托盘</div>
-              <div class="switch-desc">点击 ✕ 后隐藏到托盘，加速服务继续后台运行</div>
-            </div>
-            <label class="switch"><input type="checkbox" id="opt-tray" /><span class="slider"></span></label>
-          </div>
-        </section>
-
-        <section class="set-group">
-          <div class="set-group-title">🛰 本地服务</div>
-          <div class="info-lines">
-            <div class="info-line"><span>监听地址</span><span class="mono">127.0.0.1:3030</span></div>
-            <div class="info-line"><span>请求鉴权</span><span class="mono">x-neuro-token</span></div>
-            <div class="info-line"><span>CORS 策略</span><span>仅扩展源 / Tauri / localhost</span></div>
-            <div class="info-line"><span>扩展心跳</span><span id="ext-status">等待接入…</span></div>
-          </div>
-        </section>
-
-      </div>
+    <div class="page-head">
+      <button id="btn-back" class="btn-back" title="返回主面板">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5 5.5 8 10 12.5"/></svg>
+        <span>返回</span>
+      </button>
+      <div class="page-title">设置</div>
+      <div class="page-title-side mono" id="page-ver">v1.0.0</div>
     </div>
-  </div>
 
-  <!-- ================= 关于对话框 ================= -->
-  <div class="overlay hidden" id="about-overlay">
-    <div class="modal modal-about" role="dialog" aria-modal="true" aria-label="关于">
-      <div class="modal-head">
-        <div class="modal-title">关于</div>
-        <button class="modal-x" data-close="about-overlay" aria-label="关闭">✕</button>
-      </div>
-      <div class="about-body">
-        <svg class="about-logo" viewBox="0 0 24 24" width="64" height="64" aria-hidden="true">
-          <rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.4" fill="url(#lg-brand)"/>
-          <path d="M13.2 5.4 8.1 13h3.2l-.9 5.6 5.4-7.9h-3.3l.7-5.3z" fill="#0d1220"/>
-        </svg>
-        <div class="about-name">NeuroFlow <span>CORE</span></div>
-        <div class="about-ver mono">v<span id="about-ver">1.0.0</span></div>
-        <p class="about-desc">基于 Rust + Tauri 的本地浏览器加速服务：为 NeuroFlow Link 浏览器扩展提供鉴权、监控与智能调度 API，服务常驻系统托盘。</p>
-        <div class="about-chips">
-          <span class="tech">Rust</span><span class="tech">Tauri 2</span><span class="tech">Warp</span><span class="tech">MV3</span>
+    <div class="page-body">
+
+      <!-- ① 运行详情（原「详情」面板内容） -->
+      <section class="set-block">
+        <div class="set-block-title">运行详情 <span class="hint">NET · HEALTH · MAINT</span></div>
+        <div class="detail-grid">
+
+          <div class="mini-card">
+            <div class="mc-head">实时网速 <span class="mc-hint">NET I/O</span></div>
+            <div class="rate-row">
+              <div class="rate-label down">↓ 下行</div>
+              <div class="rate-nums"><span id="speed-down" class="mono">0.0</span><span id="unit-down" class="unit">KB/s</span></div>
+              <div class="track"><div id="bar-down" class="bar down"></div></div>
+            </div>
+            <div class="rate-row">
+              <div class="rate-label up">↑ 上行</div>
+              <div class="rate-nums"><span id="speed-up" class="mono">0.0</span><span id="unit-up" class="unit">KB/s</span></div>
+              <div class="track"><div id="bar-up" class="bar up"></div></div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="mc-head">链路健康 <span class="mc-hint" id="health-score">检测中…</span></div>
+            <div class="track tall"><div id="health-bar" class="bar health"></div></div>
+            <div class="health-diag" id="health-diag">等待网络脉搏…</div>
+          </div>
+
+          <div class="mini-card">
+            <div class="mc-head">当前焦点</div>
+            <div id="url-display" class="url-display mono">等待捕获…</div>
+            <div class="stat-line"><span>系统内存</span><span id="mem-display" class="mono">读取中…</span></div>
+          </div>
+
+          <div class="mini-card">
+            <div class="mc-head">预载规则 <span class="mc-hint">MANUAL</span></div>
+            <div class="rule-form">
+              <input type="text" id="source-domain" placeholder="主域名 bilibili.com" />
+              <span class="rule-arrow">→</span>
+              <input type="text" id="target-sub" placeholder="预载 message" />
+            </div>
+            <button id="add-rule-btn" class="btn-mini">添加规则</button>
+          </div>
+
+          <div class="mini-card">
+            <div class="mc-head">系统维护</div>
+            <div class="maintain-row">
+              <button id="btn-emergency-fix" class="btn-mini danger">🚑 一键急救</button>
+              <button id="btn-scan" class="btn-mini accent">⚡ 智能扫描</button>
+              <span class="est mono" id="estimate-val">—</span>
+            </div>
+            <div id="fix-msg" class="fix-msg mono">就绪。</div>
+          </div>
+
+          <div class="mini-card log-card">
+            <div class="mc-head">决策日志</div>
+            <ul id="log-list"><li><span class="log-tag">[SYSTEM]</span><span class="log-time">—</span><span class="log-msg">核心引擎已就绪…</span></li></ul>
+          </div>
+
         </div>
-        <div class="about-meta">
-          <span>数据仅存于本机</span>
-          <span>© 2026 NeuroFlow</span>
+      </section>
+
+      <!-- ② 令牌配对（保持原貌） -->
+      <section class="set-block">
+        <div class="set-block-title">🔑 扩展配对 <span class="hint">SECURITY TOKEN</span></div>
+        <div class="set-row">
+          <span class="set-label">安全握手令牌</span>
+          <div class="token-box">
+            <span id="settings-token" class="token-value mono">正在获取…</span>
+            <button id="settings-copy" class="btn-mini">复制</button>
+            <button id="settings-rotate" class="btn-mini warn">轮换</button>
+          </div>
         </div>
-      </div>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="token_mode" value="fixed" />
+            <div class="radio-body">
+              <div class="option-title">固定模式 <span class="tag green">省心</span></div>
+              <div class="option-desc">Token 落盘保存，重启后扩展无需重新配对</div>
+            </div>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="token_mode" value="random" />
+            <div class="radio-body">
+              <div class="option-title">随机模式 <span class="tag red">高安</span></div>
+              <div class="option-desc">每次启动自动轮换，需在扩展中重新粘贴</div>
+            </div>
+          </label>
+        </div>
+        <ol class="guide">
+          <li>Chrome / Edge 打开 <span class="mono">扩展管理页</span>，开启「开发者模式」</li>
+          <li>「加载已解压的扩展程序」→ 选择项目 <span class="mono">extension/</span> 目录</li>
+          <li>点击工具栏 NeuroFlow 图标 → 粘贴上方令牌 → 连接</li>
+        </ol>
+      </section>
+
+      <!-- ③ 常规选项 -->
+      <section class="set-block">
+        <div class="set-block-title">⚙ 常规选项 <span class="hint">BEHAVIOR</span></div>
+        <div class="switch-row">
+          <div class="switch-info">
+            <div class="switch-name">开机自启</div>
+            <div class="switch-desc">登录 Windows 后自动运行（默认驻留托盘）</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="opt-autostart" /><span class="slider"></span></label>
+        </div>
+        <div class="switch-row">
+          <div class="switch-info">
+            <div class="switch-name">关闭窗口驻留托盘</div>
+            <div class="switch-desc">点击 ✕ 后隐藏到托盘，加速服务继续后台运行</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="opt-tray" /><span class="slider"></span></label>
+        </div>
+      </section>
+
+      <!-- ④ 本地服务 -->
+      <section class="set-block">
+        <div class="set-block-title">🛰 本地服务 <span class="hint">LOCAL API</span></div>
+        <div class="info-lines">
+          <div class="info-line"><span>监听地址</span><span class="mono">127.0.0.1:3030</span></div>
+          <div class="info-line"><span>请求鉴权</span><span class="mono">x-neuro-token</span></div>
+          <div class="info-line"><span>CORS 策略</span><span>仅扩展源 / Tauri / localhost</span></div>
+          <div class="info-line"><span>扩展心跳</span><span id="ext-status">等待接入…</span></div>
+        </div>
+      </section>
+
+      <!-- ⑤ 关于 -->
+      <section class="set-block">
+        <div class="set-block-title">ⓘ 关于本软件 <span class="hint">ABOUT</span></div>
+        <div class="about-box">
+          <svg class="about-logo" viewBox="0 0 24 24" width="44" height="44" aria-hidden="true">
+            <rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.4" fill="url(#lg-brand)"/>
+            <path d="M13.2 5.4 8.1 13h3.2l-.9 5.6 5.4-7.9h-3.3l.7-5.3z" fill="#0d1220"/>
+          </svg>
+          <div class="about-name">NeuroFlow <span>CORE</span></div>
+          <div class="about-ver mono">v<span id="about-ver">1.0.0</span> · 本地浏览器加速服务</div>
+          <p class="about-desc">基于 Rust + Tauri 的浏览器智能性能提速系统：桌面核心负责鉴权、监控与智能调度，NeuroFlow Link 扩展负责页面感知与心跳上报；服务常驻系统托盘，数据仅存本机。</p>
+          <div class="about-chips">
+            <span class="tech">Rust</span><span class="tech">Tauri 2</span><span class="tech">Warp</span><span class="tech">MV3</span>
+          </div>
+          <div class="about-meta">
+            <span>本地加速 · 隐私隔离</span>
+            <span>© 2026 NeuroFlow</span>
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 
