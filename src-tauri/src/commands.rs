@@ -275,8 +275,9 @@ pub fn ui_close(
 }
 
 /// 打开独立设置窗口（已存在则唤起并聚焦）
+/// 注意：必须 async——同步命令跑在主线程，直接建房会与主循环互等导致 UI 卡死
 #[tauri::command]
-pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
+pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("settings") {
         let _ = w.show();
         let _ = w.unminimize();
