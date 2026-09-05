@@ -52,6 +52,8 @@ body {
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .mono { font-family: var(--mono); }
@@ -100,7 +102,8 @@ body {
    主视图（紧凑控制条）
    ========================================================================== */
 .view-main {
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background:
@@ -196,19 +199,25 @@ body {
 /* ==========================================================================
    设置整页
    ========================================================================== */
-/* 设置整页：默认隐藏，仅在独立设置窗口（body.settings-mode）中展示 */
+/* 设置整页：默认隐藏，仅在独立设置窗口（html.settings-mode）中展示 */
 .page-settings {
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   display: none;
   flex-direction: column;
   background:
-    radial-gradient(1100px 320px at 12% -20%, rgba(91, 140, 255, 0.06), transparent 60%),
-    var(--bg);
+    radial-gradient(1000px 420px at 18% -12%, rgba(91, 140, 255, 0.10), transparent 55%),
+    radial-gradient(720px 300px at 100% 0%, rgba(160, 130, 255, 0.06), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(91, 140, 255, 0.05) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, rgba(91, 140, 255, 0.05) 0 1px, transparent 1px 24px),
+    #080a0e;
 }
 
 /* 设置窗口模式：只显示设置页 */
-body.settings-mode .view-main { display: none !important; }
-body.settings-mode .page-settings { display: flex !important; }
+/* 设置窗口模式（类加在 <html> 上，尽早生效防闪现）：只显示设置页 */
+.settings-mode .view-main { display: none !important; }
+.settings-mode .page-settings { display: flex !important; }
+.settings-mode .page-head { display: none; }
 
 .page-head {
   flex-shrink: 0;
@@ -265,7 +274,7 @@ body.settings-mode .page-settings { display: flex !important; }
   font-size: 9px;
   font-weight: 400;
   letter-spacing: 1px;
-  color: var(--faint);
+  color: #77808f;
 }
 
 /* ---- 运行详情：两栏卡片 ---- */
@@ -293,7 +302,7 @@ body.settings-mode .page-settings { display: flex !important; }
   color: var(--dim);
   margin-bottom: 8px;
 }
-.mc-hint { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--faint); font-weight: 400; }
+.mc-hint { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: #77808f; font-weight: 400; }
 
 .rate-row { margin-bottom: 7px; }
 .rate-row:last-child { margin-bottom: 0; }
@@ -358,7 +367,7 @@ body.settings-mode .page-settings { display: flex !important; }
 .est { font-family: var(--mono); font-size: 10.5px; color: var(--amber); margin-left: auto; white-space: nowrap; }
 
 .fix-msg {
-  font-size: 10px; color: var(--faint);
+  font-size: 10px; color: #8b93a3;
   background: var(--bg-inset);
   padding: 4px 8px; border-radius: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

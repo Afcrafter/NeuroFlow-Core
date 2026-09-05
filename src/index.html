@@ -4,18 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NeuroFlow Core</title>
+  <script>
+    // 设置窗口模式须尽早生效：防主界面闪现 / 防白屏（窗口底色已在 Rust 侧设为深色）
+    if (new URLSearchParams(location.search).get("view") === "settings") {
+      document.documentElement.classList.add("settings-mode");
+    }
+  </script>
   <link rel="stylesheet" href="./styles.css" />
   <script type="module" src="./main.js" defer></script>
 </head>
 <body>
 
-  <!-- =====================================================
-       主视图：极简紧凑控制条（启动/复制令牌/设置）
-       ===================================================== -->
-  <div class="view-main" id="view-main">
-
-    <!-- 标题栏 -->
-    <header class="titlebar" data-tauri-drag-region>
+  <!-- 标题栏：主窗口与设置窗口共用（两窗均可拖动 / 最小化 / 关闭） -->
+  <header class="titlebar" data-tauri-drag-region>
       <div class="brand" data-tauri-drag-region>
         <svg class="brand-logo" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
           <defs>
@@ -40,6 +41,9 @@
         </button>
       </div>
     </header>
+
+  <!-- 主视图：极简紧凑控制条（启动 / 复制令牌 / 设置） -->
+  <div class="view-main" id="view-main">
 
     <!-- 服务状态单行 -->
     <section class="status-strip">

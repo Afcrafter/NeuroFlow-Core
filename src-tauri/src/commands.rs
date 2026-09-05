@@ -289,11 +289,12 @@ pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
         "settings",
         WebviewUrl::App("index.html?view=settings".into()),
     )
-    .title("NeuroFlow Core - 设置")
+        .title("NeuroFlow Core - 设置")
     .inner_size(720.0, 680.0)
     .resizable(false)
     .decorations(false)
     .center()
+    .background_color(tauri::webview::Color(8, 10, 14, 255))
     .build()
     .map_err(|e| e.to_string())?;
     Ok(())

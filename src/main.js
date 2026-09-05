@@ -416,7 +416,7 @@ function startPolling() {
 // ---------------------------------------------------------------------------
 
 async function init() {
-  if (IS_SETTINGS) document.body.classList.add("settings-mode");
+  // 设置窗口模式由 <head> 内联脚本尽早标记（html.settings-mode），此处不再重复设类
 
   setupListeners();
   setupUi();
