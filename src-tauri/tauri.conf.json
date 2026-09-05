@@ -13,10 +13,8 @@
       {
         "title": "NeuroFlow Core",
         "width": 720,
-        "height": 136,
-        "minWidth": 560,
-        "minHeight": 136,
-        "resizable": true,
+        "height": 158,
+        "resizable": false,
         "fullscreen": false,
         "decorations": false,
         "center": true

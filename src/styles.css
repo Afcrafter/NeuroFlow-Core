@@ -66,7 +66,7 @@ body {
    标题栏（两视图共用）
    ========================================================================== */
 .titlebar {
-  height: 40px;
+  height: 42px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -150,27 +150,28 @@ body {
 .ext-state.linked { color: var(--green); }
 .ext-state.alert { color: var(--red); }
 
-/* 三按钮区 */
+/* 三按钮区：等宽三列、按钮调大 */
 .actions {
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 16px 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 4px 16px 12px;
 }
 
 .act-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 6px;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  width: 100%;
+  border-radius: 8px;
   border: 1px solid var(--btn-border);
   background: var(--btn);
   color: #e6e9ef;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   white-space: nowrap;
@@ -190,19 +191,24 @@ body {
 .act-btn.service-off:hover { background: rgba(53,201,142,.22); }
 .act-btn.service-off .act-ico { color: var(--green); }
 
-.vsep { width: 1px; height: 18px; background: var(--line-strong); margin: 0 2px; flex-shrink: 0; }
+.vsep { display: none; }
 
 /* ==========================================================================
    设置整页
    ========================================================================== */
+/* 设置整页：默认隐藏，仅在独立设置窗口（body.settings-mode）中展示 */
 .page-settings {
   height: 100vh;
-  display: flex;
+  display: none;
   flex-direction: column;
   background:
     radial-gradient(1100px 320px at 12% -20%, rgba(91, 140, 255, 0.06), transparent 60%),
     var(--bg);
 }
+
+/* 设置窗口模式：只显示设置页 */
+body.settings-mode .view-main { display: none !important; }
+body.settings-mode .page-settings { display: flex !important; }
 
 .page-head {
   flex-shrink: 0;

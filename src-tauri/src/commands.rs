@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use sled::Db;
 use sysinfo::System;
-use tauri::{AppHandle, Emitter, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::{CloseToTray, ServiceEnabled};
 
@@ -272,6 +272,30 @@ pub fn ui_close(
     } else {
         window.close().map_err(|e| e.to_string())
     }
+}
+
+/// 打开独立设置窗口（已存在则唤起并聚焦）
+#[tauri::command]
+pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("settings") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(
+        &app,
+        "settings",
+        WebviewUrl::App("index.html?view=settings".into()),
+    )
+    .title("NeuroFlow Core - 设置")
+    .inner_size(720.0, 680.0)
+    .resizable(false)
+    .decorations(false)
+    .center()
+    .build()
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// 调整主窗口尺寸（展开 / 收起详情面板）

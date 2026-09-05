@@ -1,10 +1,13 @@
 /**
- * NeuroFlow Core — 极简控制条 + 设置整页
- * 主视图：启停 / 复制令牌 / 设置；设置页承载运行详情、令牌配对、常规、关于
+ * NeuroFlow Core — 极简控制条（主窗口，固定尺寸）+ 独立设置窗口
+ * 主窗口：启停 / 复制令牌 / 设置；设置窗口：运行详情、令牌配对、常规、关于
  */
 
 const { listen } = window.__TAURI__.event;
 const { invoke } = window.__TAURI__.core;
+
+// 是否为独立设置窗口（index.html?view=settings）
+const IS_SETTINGS = new URLSearchParams(location.search).get("view") === "settings";
 
 // ---------------------------------------------------------------------------
 // 状态
@@ -14,12 +17,7 @@ let currentToken = "";
 let currentMode = "fixed";
 let svcEnabled = true;
 let extOnline = false;
-let settingsOpen = false;
 let lastExtMsgAt = 0;
-
-const W = 720;          // 窗口宽度
-const H_MAIN = 136;     // 主视图高度（极简控制条）
-const H_SET = 660;      // 设置页高度
 
 const ratePeak = { down: 256 * 1024, up: 128 * 1024, minDown: 64 * 1024, minUp: 32 * 1024 };
 
@@ -94,7 +92,7 @@ async function copyText(text) {
 }
 
 // ---------------------------------------------------------------------------
-// 服务状态 UI（主视图单行 + 设置页心跳状态）
+// 服务状态 UI
 // ---------------------------------------------------------------------------
 
 function setServiceUi(enabled) {
@@ -105,12 +103,12 @@ function setServiceUi(enabled) {
   const label = $("btn-service-label");
 
   if (enabled) {
-    if (dot) { dot.className = "svc-dot on"; }
+    if (dot) dot.className = "svc-dot on";
     if (title) { title.textContent = "服务运行中"; title.className = "svc-title"; }
     if (btn) { btn.className = "act-btn service-on"; btn.title = "暂停本地加速服务"; }
     if (label) label.textContent = "停止服务";
   } else {
-    if (dot) { dot.className = "svc-dot off"; }
+    if (dot) dot.className = "svc-dot off";
     if (title) { title.textContent = "服务已暂停"; title.className = "svc-title off"; }
     if (btn) { btn.className = "act-btn service-off"; btn.title = "启动本地加速服务"; }
     if (label) label.textContent = "启动服务";
@@ -134,45 +132,16 @@ function refreshExtState() {
 }
 
 // ---------------------------------------------------------------------------
-// 视图切换（主视图 ⇄ 设置整页）
-// ---------------------------------------------------------------------------
-
-async function setView(openSettings) {
-  settingsOpen = openSettings;
-  const main = $("view-main");
-  const page = $("page-settings");
-  if (main) main.classList.toggle("hidden", openSettings);
-  if (page) page.classList.toggle("hidden", !openSettings);
-  try {
-    await invoke("ui_resize", { width: W, height: openSettings ? H_SET : H_MAIN });
-  } catch (_) {}
-  if (openSettings) {
-    refreshExtState();
-    try {
-      const [auto, tray] = await Promise.all([
-        invoke("get_autostart").catch(() => false),
-        invoke("get_close_to_tray").catch(() => true),
-      ]);
-      const a = $("opt-autostart");
-      const t = $("opt-tray");
-      if (a) a.checked = Boolean(auto);
-      if (t) t.checked = Boolean(tray);
-    } catch (_) {}
-  }
-}
-
-// ---------------------------------------------------------------------------
 // 网速 / 健康
 // ---------------------------------------------------------------------------
 
 function updateSpeedUi(rxBps, txBps) {
   const down = formatRate(rxBps);
   const up = formatRate(txBps);
-  const map = [
+  [
     ["speed-down", down.value], ["unit-down", down.unit],
     ["speed-up", up.value], ["unit-up", up.unit],
-  ];
-  map.forEach(([id, v]) => { const el = $(id); if (el) el.textContent = v; });
+  ].forEach(([id, v]) => { const el = $(id); if (el) el.textContent = v; });
   const bd = $("bar-down");
   const bu = $("bar-up");
   if (bd) bd.style.width = `${barPercent(down.bps, "down")}%`;
@@ -236,9 +205,7 @@ function setupListeners() {
     else if (e.payload === "HIGH_SPEED") addLog("已恢复极速模式", "NET");
   });
 
-  listen("memory-warning", (e) => {
-    addLog(`内存告警：占用约 ${e.payload}%`, "MEM");
-  });
+  listen("memory-warning", (e) => addLog(`内存告警：占用约 ${e.payload}%`, "MEM"));
 
   listen("preload-log", (e) => addLog(String(e.payload ?? ""), "LOG"));
 
@@ -251,20 +218,17 @@ function setupListeners() {
     addLog(e.payload ? "本地服务已启动" : "本地服务已暂停", "SVC");
   });
 
-  // 扩展心跳回显（server.rs 在 mcp ping 时回推）
+  // 扩展心跳回显
   listen("extension-ping", () => {
     const now = Date.now();
     if (!extOnline) {
       extOnline = true;
       addLog("浏览器扩展已接入（完成安全握手）", "LINK");
     }
-    if (now - lastExtMsgAt > 60000) {
-      lastExtMsgAt = now;
-    }
+    if (now - lastExtMsgAt > 60000) lastExtMsgAt = now;
     refreshExtState();
   });
 
-  // 关闭窗口 → 驻留托盘
   listen("to-tray", () => {
     toast("已最小化到托盘，服务继续运行 — 点击托盘图标恢复面板", "good");
   });
@@ -289,7 +253,7 @@ function applyToken(token, mode) {
 // ---------------------------------------------------------------------------
 
 function setupUi() {
-  // 窗口控制
+  // 窗口控制（作用于所在窗口：主窗口 / 设置窗口）
   $("win-min")?.addEventListener("click", () => invoke("ui_minimize").catch(() => {}));
   $("win-close")?.addEventListener("click", () => invoke("ui_close").catch(() => {}));
 
@@ -302,18 +266,22 @@ function setupUi() {
     }
   });
 
-  // 复制令牌（主视图）
+  // 主窗口：打开独立设置窗口（主窗口尺寸不变）
+  $("btn-settings")?.addEventListener("click", () => {
+    invoke("open_settings_window").catch((err) => toast(`打开设置失败: ${err}`, "bad"));
+  });
+
+  // 设置窗口：返回 = 关闭设置窗口
+  $("btn-back")?.addEventListener("click", () => invoke("ui_close").catch(() => {}));
+
+  // 复制令牌（主窗口）
   $("btn-token")?.addEventListener("click", async () => {
     if (!currentToken) { toast("令牌尚未就绪，请稍后重试", "bad"); return; }
     const ok = await copyText(currentToken);
     toast(ok ? "令牌已复制，粘贴到浏览器扩展即可配对" : "复制失败，请到设置中手动复制", ok ? "good" : "bad");
   });
 
-  // 设置页开合
-  $("btn-settings")?.addEventListener("click", () => setView(true));
-  $("btn-back")?.addEventListener("click", () => setView(false));
-
-  // 令牌操作（设置页）
+  // 令牌操作（设置窗口）
   $("settings-copy")?.addEventListener("click", async () => {
     if (!currentToken) return;
     const ok = await copyText(currentToken);
@@ -417,10 +385,12 @@ function setupUi() {
     }
   });
 
-  // ESC 返回主视图
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && settingsOpen) setView(false);
-  });
+  // 设置窗口内 ESC 关闭
+  if (IS_SETTINGS) {
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") invoke("ui_close").catch(() => {});
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -446,6 +416,8 @@ function startPolling() {
 // ---------------------------------------------------------------------------
 
 async function init() {
+  if (IS_SETTINGS) document.body.classList.add("settings-mode");
+
   setupListeners();
   setupUi();
   startPolling();
@@ -481,8 +453,20 @@ async function init() {
     setServiceUi(true);
   }
 
+  // 常规开关状态（设置窗口每次打开都重新拉取）
+  try {
+    const [auto, tray] = await Promise.all([
+      invoke("get_autostart").catch(() => false),
+      invoke("get_close_to_tray").catch(() => true),
+    ]);
+    const a = $("opt-autostart");
+    const t = $("opt-tray");
+    if (a) a.checked = Boolean(auto);
+    if (t) t.checked = Boolean(tray);
+  } catch (_) {}
+
   updateSpeedUi(0, 0);
-  addLog("核心引擎已就绪", "SYSTEM");
+  addLog(IS_SETTINGS ? "设置窗口已打开" : "核心引擎已就绪", "SYSTEM");
 }
 
 if (document.readyState === "loading") {
@@ -491,4 +475,4 @@ if (document.readyState === "loading") {
   init();
 }
 
-window.__neuroflow = { formatRate, updateSpeedUi, applyToken, setServiceUi, setView };
+window.__neuroflow = { formatRate, updateSpeedUi, applyToken, setServiceUi };

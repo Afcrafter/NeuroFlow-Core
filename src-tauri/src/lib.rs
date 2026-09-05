@@ -35,8 +35,8 @@ use tauri::{Emitter, Manager};
 use commands::{
     clean_gpu_cache, execute_fix_action, execute_specific_freeze, get_app_version,
     get_autostart, get_background_tabs_list, get_estimated_savings, get_manual_rules,
-    get_memory_percent, get_memory_usage, get_service_state, save_manual_rule, set_autostart,
-    set_service_enabled, ui_close, ui_minimize, ui_resize,
+    get_memory_percent, get_memory_usage, get_service_state, open_settings_window, save_manual_rule,
+    set_autostart, set_service_enabled, ui_close, ui_minimize, ui_resize,
 };
 use config::{
     close_to_tray_enabled, get_close_to_tray, get_session_token, get_token_info,
@@ -139,6 +139,7 @@ async fn run_async() {
             ui_minimize,
             ui_close,
             ui_resize,
+            open_settings_window,
             get_close_to_tray,
             set_close_to_tray_cmd,
         ])
