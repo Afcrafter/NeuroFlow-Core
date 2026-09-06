@@ -187,6 +187,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // --- 辅助逻辑函数 ---
 
+// --- 心跳保活：每 60s 静默上报一次，让桌面端保持「已接入」状态 ---
+// （否则桌面端以近 120s 无请求判定断开，即使扩展已连接也会回落）
+async function sendHeartbeat() {
+    const res = await notifyRust({ method: "ping", id: Date.now(), params: {} }, "mcp");
+    if (res && res.status === 401) {
+        // 令牌已失效（后端轮换过）：复位连接状态，避免假绿
+        const cur = await chrome.storage.local.get("connection_status");
+        if (cur.connection_status === "connected") {
+            chrome.storage.local.set({ connection_status: "disconnected" });
+        }
+    }
+    return res;
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.alarms.create("nf-heartbeat", { periodInMinutes: 1 });
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "nf-heartbeat") {
+        sendHeartbeat();
+    }
+});
+
 function performSemanticFreeze() {
     chrome.tabs.query({ active: false, discarded: false, pinned: false }, (tabs) => {
         tabs.forEach(tab => {

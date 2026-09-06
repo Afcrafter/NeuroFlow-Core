@@ -13,9 +13,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.value = storage.neuro_token;
     }
 
-    // 如果上次保存的状态是 connected，直接渲染绿灯
-    if (storage.connection_status === 'connected') {
-        updateUI(true);
+    // 如果上次保存的状态是 connected，先静默重新握手验证（令牌可能已被后端轮换）
+    if (storage.connection_status === 'connected' && storage.neuro_token) {
+        try {
+            const check = await fetch('http://127.0.0.1:3030/mcp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-neuro-token': storage.neuro_token
+                },
+                body: JSON.stringify({ method: "ping", id: 1, params: {} })
+            });
+            if (check.ok) {
+                updateUI(true);
+            } else {
+                await chrome.storage.local.set({ connection_status: 'disconnected' });
+                updateUI(false);
+            }
+        } catch (_) {
+            // 后端未启动：不强行判定，维持展示未连接
+            updateUI(false);
+        }
     } else {
         updateUI(false);
     }
@@ -67,11 +85,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // 变绿灯 UI
                     updateUI(true);
                 } else {
-                    throw new Error("Token 无效");
+                    // 区分错误：401=令牌错，403=来源拒，503=服务暂停
+                    if (response.status === 401) {
+                        throw new Error("令牌无效(401)：请重新打开 NeuroFlow 设置页→复制最新令牌");
+                    } else if (response.status === 403) {
+                        throw new Error("来源被拒(403)：请从扩展弹窗内发起连接");
+                    } else if (response.status === 503) {
+                        throw new Error("本地服务已暂停(503)：请在 NeuroFlow 面板点启动服务");
+                    } else {
+                        throw new Error(`后端错误(${response.status})`);
+                    }
                 }
             } catch (err) {
                 // === ❌ 连接失败 ===
-                alert("连接失败: " + "无法连接到 NeuroFlow 后端，请检查 Token 或确认软件已启动。");
+                const hint = String(err && err.message ? err.message : err);
+                const isNet = !/令牌|403|503|\d{3}/.test(hint);
+                alert("连接失败：" + (isNet
+                    ? "无法连接到 NeuroFlow 后端(127.0.0.1:3030)，请确认 NeuroFlow 桌面端已启动且服务在运行。"
+                    : hint));
                 updateUI(false); // 确保是断开状态
             } finally {
                 btn.disabled = false;

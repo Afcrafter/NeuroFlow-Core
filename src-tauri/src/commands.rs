@@ -304,8 +304,10 @@ fn find_extension_dir() -> Option<String> {
         }
     }
     for c in candidates {
-        if c.join("manifest.json").exists() {
-            return Some(c.to_string_lossy().into_owned());
+        // 先规范化（去掉 `..` 相对段），否则资源管理器定位失败会退回“文档”
+        let canon = std::fs::canonicalize(&c).unwrap_or(c);
+        if canon.join("manifest.json").exists() {
+            return Some(canon.to_string_lossy().into_owned());
         }
     }
     None

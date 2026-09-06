@@ -129,24 +129,15 @@ fn origin_guard() -> impl Filter<Extract = ((),), Error = Rejection> + Clone {
 /// 收紧的 CORS 层：仅本机 / Tauri 源拿到 ACAO 头。
 /// 浏览器扩展依赖 `host_permissions` 访问 localhost，通常不依赖 CORS；
 /// 扩展 Origin 由 `origin_guard` 放行。
+///
+/// 注意：warp 的 CORS 层是最外层包装，会先于路由内的 `origin_guard` 执行；
+/// 而扩展源是 `chrome-extension://<任意id>`，无法预知静态枚举。若这里用
+/// 固定 allow_origins 白名单，扩展请求会在到达 `origin_guard` 前就被 403 拒掉。
+/// 因此 CORS 层改为 `allow_any_origin`，真正的来源门禁由每路由前的 `origin_guard`
+/// 完成（它允许扩展源/Tauri/loopback，拒绝任意公网站点），不产生数据泄露面。
 fn restricted_cors() -> warp::cors::Builder {
     warp::cors()
-        .allow_origins([
-            "tauri://localhost",
-            "http://tauri.localhost",
-            "https://tauri.localhost",
-            "http://localhost",
-            "https://localhost",
-            "http://127.0.0.1",
-            "https://127.0.0.1",
-            // 常见前端 dev 端口
-            "http://localhost:1420",
-            "http://127.0.0.1:1420",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ])
+        .allow_any_origin()
         .allow_headers(vec!["content-type", "x-neuro-token"])
         .allow_methods(vec!["POST", "GET", "OPTIONS", "HEAD"])
         .max_age(600)

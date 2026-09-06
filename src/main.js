@@ -283,6 +283,15 @@ function applyToken(token, mode) {
   try { localStorage.setItem("neuro_token", currentToken); } catch (_) {}
 }
 
+/** 实时从服务端拉取当前令牌（避免窗口间缓存不一致） */
+async function fetchLiveToken() {
+  try {
+    const t = await invoke("get_session_token");
+    if (t) { currentToken = String(t); return currentToken; }
+  } catch (_) {}
+  return currentToken;
+}
+
 // ---------------------------------------------------------------------------
 // 交互绑定
 // ---------------------------------------------------------------------------
@@ -315,8 +324,10 @@ function setupUi() {
   const ICO_OK = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.6 6.4 12 13 4.6"/></svg>`;
   $("btn-token")?.addEventListener("click", async () => {
     if (copyBusy) return;
-    if (!currentToken) { toast("令牌尚未就绪，请稍后重试", "bad"); return; }
-    const ok = await copyText(currentToken);
+    // 复制前实时拉取，防止轮换后本窗口仍是旧令牌
+    const token = await fetchLiveToken();
+    if (!token) { toast("令牌尚未就绪，请稍后重试", "bad"); return; }
+    const ok = await copyText(token);
     if (!ok) { toast("复制失败，请到设置中手动复制", "bad"); return; }
     copyBusy = true;
     const btn = $("btn-token");
@@ -337,8 +348,9 @@ function setupUi() {
   let sCopyBusy = false;
   $("settings-copy")?.addEventListener("click", async () => {
     if (sCopyBusy) return;
-    if (!currentToken) return;
-    const ok = await copyText(currentToken);
+    const token = await fetchLiveToken();
+    if (!token) return;
+    const ok = await copyText(token);
     const b = $("settings-copy");
     sCopyBusy = true;
     if (b) {
