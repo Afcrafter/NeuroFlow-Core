@@ -333,9 +333,15 @@ pub fn open_extension_folder() -> Result<String, String> {
     }
     Ok(dir)
 }
+/// 打开设置窗口：隐藏主界面（主窗口不关闭，服务继续后台运行）
 /// 注意：必须 async——同步命令跑在主线程，直接建房会与主循环互等导致 UI 卡死
 #[tauri::command]
 pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
+    // 主界面先行隐藏，设置窗口关闭时再恢复（见 lib.rs on_window_event）
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.hide();
+    }
+
     if let Some(w) = app.get_webview_window("settings") {
         let _ = w.show();
         let _ = w.unminimize();

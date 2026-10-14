@@ -5,10 +5,22 @@
     <title>NeuroFlow 神经连接中断</title>
     <style>
         body { background: #0d0d0d; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .container { text-align: center; width: 600px; padding: 40px; border: 1px solid #ff4d4f; background: rgba(255, 77, 79, 0.05); border-radius: 12px; box-shadow: 0 0 30px rgba(255, 77, 79, 0.1); }
+        .container { text-align: center; width: 620px; padding: 40px; border: 1px solid #ff4d4f; background: rgba(255, 77, 79, 0.05); border-radius: 12px; box-shadow: 0 0 30px rgba(255, 77, 79, 0.1); }
         h1 { color: #ff4d4f; font-size: 24px; margin-bottom: 10px; }
-        .url { color: #888; font-family: monospace; background: #1a1a1a; padding: 5px 10px; border-radius: 4px; display: inline-block; margin: 20px 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .url { color: #888; font-family: monospace; background: #1a1a1a; padding: 8px 12px; border-radius: 4px; display: inline-block; margin: 20px 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .reason { color: #666; font-size: 12px; margin-bottom: 8px; }
         .status { color: #00f2ff; margin-top: 20px; font-weight: bold; }
+        .actions { margin-top: 24px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer;
+            font-weight: bold; font-size: 14px; transition: all .2s ease;
+            color: #fff;
+        }
+        .btn-back { background: linear-gradient(90deg, #00a3ff, #0066ff); }
+        .btn-back:hover { box-shadow: 0 0 15px rgba(0,163,255,.5); }
+        .btn-retry { background: linear-gradient(90deg, #22c55e, #16a34a); }
+        .btn-retry:hover { box-shadow: 0 0 15px rgba(34,197,94,.5); }
+        .countdown { font-size: 11px; color: #555; margin-top: 16px; }
         .analyzing { animation: blink 1.5s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
     </style>
@@ -16,18 +28,95 @@
 <body>
     <div class="container">
         <h1>⚠️ 神经连接中断</h1>
-        <p>目标服务器无法响应，NeuroFlow 介入接管。</p>
+        <p>目标服务器看起来无法连接，NeuroFlow 已暂停接管。</p>
         <div class="url" id="target-url">Loading...</div>
-        <div class="reason" id="error-code" style="color:#666; font-size:12px;"></div>
-        <div class="status analyzing">📡 正在上传黑匣子数据至 AI 核心...</div>
-        <p style="font-size: 12px; color: #555; margin-top: 30px;">请查看 NeuroFlow 桌面端获取修复建议</p>
+        <div class="reason" id="error-code"></div>
+        <div class="status analyzing">📡 已上传黑匣子数据至 AI 核心...</div>
+
+        <div class="actions">
+            <button class="btn btn-back" id="btn-back">← 返回上一页</button>
+            <button class="btn btn-retry" id="btn-retry">🔄 重试访问</button>
+        </div>
+        <div class="countdown" id="countdown">3 秒后自动返回上一页</div>
+
+        <p style="font-size: 12px; color: #555; margin-top: 24px;">请查看 NeuroFlow 桌面端获取修复建议</p>
     </div>
 
     <script>
-        // 解析 URL 参数显示到页面上
+        // 解析 URL 参数显示到页面上。
+        // 注意：URLSearchParams.get() 已自动解码一次，这里不要再 decodeURIComponent，避免二次解码崩溃。
         const params = new URLSearchParams(window.location.search);
-        document.getElementById('target-url').innerText = params.get('url');
-        document.getElementById('error-code').innerText = params.get('reason');
+        const originalUrl = params.get('url');
+        const reason = params.get('reason');
+        document.getElementById('target-url').innerText = originalUrl || '未知地址';
+        document.getElementById('error-code').innerText = reason
+            ? '错误原因：' + reason.replace(/^net::/, '')
+            : '';
+
+        const btnBack = document.getElementById('btn-back');
+        const btnRetry = document.getElementById('btn-retry');
+        const countdownEl = document.getElementById('countdown');
+        const statusEl = document.querySelector('.status');
+
+        // 获取当前标签页 id（错误页是扩展页，可直接用 chrome.tabs）
+        function getCurrentTabId() {
+            return new Promise((resolve) => {
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    resolve((tabs && tabs[0] && tabs[0].id != null) ? tabs[0].id : null);
+                });
+            });
+        }
+
+        // 【核心修复】真正“返回上一页”：让当前标签页回退到出错前的那一页。
+        // 之前用 history.back() 在 chrome-extension:// 错误页里永远 length<=1，什么都不退；
+        // 而用 location.replace(originalUrl) 会再次触发 onErrorOccurred 被弹回错误页 → 无限循环，看起来就像按钮点了没反应。
+        function goBack() {
+            getCurrentTabId().then((tabId) => {
+                if (tabId != null && typeof chrome.tabs.goBack === 'function') {
+                    // chrome.tabs.goBack 会按标签页自身的浏览历史回退，回到出错前的页面（最可靠）
+                    chrome.tabs.goBack(tabId, () => {
+                        if (chrome.runtime.lastError) {
+                            // goBack 失败（无历史可退）→ 回退到重试原地址
+                            retryOriginal();
+                        }
+                    });
+                } else if (history.length > 1) {
+                    history.back();
+                } else {
+                    retryOriginal();
+                }
+            });
+        }
+
+        // 重试原地址；若仍失败浏览器会再次触发 onErrorOccurred，但 background 的熔断器会把可恢复错误放行
+        function retryOriginal() {
+            if (!statusEl) return;
+            statusEl.textContent = '🔄 正在重新连接…';
+            statusEl.classList.remove('analyzing');
+            setTimeout(() => {
+                if (originalUrl) window.location.replace(originalUrl);
+                else window.close();
+            }, 150);
+        }
+
+        // 自动回退倒计时（避免把用户锁死在错误页）
+        let seconds = 3;
+        const timer = setInterval(() => {
+            seconds -= 1;
+            if (countdownEl) countdownEl.textContent = seconds > 0 ? `${seconds} 秒后自动返回上一页` : '正在返回上一页…';
+            if (seconds <= 0) {
+                clearInterval(timer);
+                goBack();
+            }
+        }, 1000);
+
+        btnBack.addEventListener('click', () => { clearInterval(timer); goBack(); });
+
+        // 重试：直接回原始地址（不跳错误页，交给浏览器自己处理）
+        btnRetry.addEventListener('click', () => {
+            clearInterval(timer);
+            retryOriginal();
+        });
     </script>
 </body>
 </html>

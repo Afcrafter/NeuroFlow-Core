@@ -86,35 +86,41 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     } catch (e) {}
 });
 
-// --- 场景 3: 网络异常监测 (修复版 - 解决无限刷新) ---
+// --- 场景 3: 网络异常监测 (仅真正连不上才拦截) ---
 chrome.webNavigation.onErrorOccurred.addListener(async (details) => {
     // 1. 仅处理主框架，忽略 iframe 报错
-    if (details.frameId !== 0) return; 
-    
-    // [关键修复 1] 获取插件本地错误页的真实地址
-    const errorPageUrl = chrome.runtime.getURL("error.html");
+    if (details.frameId !== 0) return;
 
-    // [关键修复 2] 死循环熔断器：
-    // 如果当前出错的 URL 已经是我们的错误页了，说明发生了二次错误，必须立即停止，否则会无限刷新
+    // 2. 死循环熔断器：错误页自身 / 扩展内部页不处理，避免无限刷新
+    const errorPageUrl = chrome.runtime.getURL("error.html");
     if (details.url.startsWith(errorPageUrl)) return;
-    
-    // 3. 忽略插件内部页面和其他非 HTTP 协议 (防止把设置页或空白页也拦截了)
     if (details.url.startsWith("chrome-extension://") || details.url.startsWith("about:")) return;
 
-    console.warn("捕获到加载错误，正在介入:", details.error);
+    // 3. 【核心削减】可恢复/瞬时错误一律不拦截，放行给浏览器自行恢复正常：
+    //    - 超时、连接重置、网络切换、代理变化、缓存未命中、重定向过多……
+    //      这些往往“延迟一下就能进”，强行转错误页反而把本可打开的页面锁死。
+    //    只对“确定连不上”的致命错误才接管。
+    const err = details.error || "";
+    // 可恢复/瞬时错误关键字：命中任意一个即放行（延迟、网络切换、代理变化、缓存问题等，浏览器重试即可）
+    const RECOVERABLE = /TIMED_OUT|CONNECTION_RESET|NETWORK_CHANGED|NETWORK_ACCESS_DENIED|CONNECTION_CLOSED|CONNECTION_ABORTED|CACHE_MISS|TOO_MANY_REDIRECTS|INCOMPLETE_CHUNKED_ENCODING|RESPONSE_HEADERS_TOO_BIG|EMPTY_RESPONSE|CONTENT_LENGTH_MISMATCH|ABORTED|PROXY_CONNECTION_FAILED/i;
+    if (RECOVERABLE.test(err)) {
+        console.warn("[NeuroFlow] 瞬时/可恢复错误，不介入（由浏览器重试）:", err);
+        notifyRust({ url: details.url, error: err }, "report_error");
+        return;
+    }
 
-    // 4. 上报给 Rust (保持原有逻辑，用于桌面端日志显示)
+    // 走到这说明是“确定连不上”（DNS 解析失败 / 拒绝连接 / 断网等），才接管到错误页
+    console.warn("捕获到致命加载错误，接管:", err);
+
+    // 4. 上报给 Rust (用于桌面端日志显示)
     notifyRust({
         url: details.url,
-        error: details.error
+        error: err
     }, "report_error");
 
-    // 5. 跳转到本地错误页 (带上参数)
-    // 我们把原始 URL 和错误原因编码后传给 error.html，让 HTML 自己去渲染内容
+    // 5. 跳转到本地错误页 (带上参数)，错误页内会提供“返回上一页”回退
     const targetUrl = encodeURIComponent(details.url);
-    const reason = encodeURIComponent(details.error);
-    
-    // 构造最终跳转地址： extension://xxxx/error.html?url=...&reason=...
+    const reason = encodeURIComponent(err);
     const finalUrl = `${errorPageUrl}?url=${targetUrl}&reason=${reason}`;
 
     chrome.tabs.update(details.tabId, { url: finalUrl });

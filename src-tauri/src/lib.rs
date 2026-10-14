@@ -162,6 +162,20 @@ async fn run_async() {
                     let _ = window.app_handle().emit("to-tray", ());
                 }
             }
+            // 设置窗口关闭（✕ / 返回按钮 / ESC）→ 恢复主界面
+            if window.label() == "settings"
+                && matches!(
+                    event,
+                    tauri::WindowEvent::CloseRequested { .. }
+                        | tauri::WindowEvent::Destroyed
+                )
+            {
+                if let Some(main) = window.app_handle().get_webview_window("main") {
+                    let _ = main.show();
+                    let _ = main.unminimize();
+                    let _ = main.set_focus();
+                }
+            }
         })
         .setup(|app| -> Result<(), Box<dyn std::error::Error>> {
             build_tray(app.handle())?;
