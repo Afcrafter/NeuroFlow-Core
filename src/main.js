@@ -70,6 +70,29 @@ function addLog(msg, tag = "AI") {
   while (list.children.length > 60) list.removeChild(list.lastElementChild);
 }
 
+/** 渲染预载规则列表（数据来自后端 get_manual_rules） */
+async function renderRuleList() {
+  const list = $("rule-list");
+  if (!list) return false;
+  try {
+    const rules = await invoke("get_manual_rules");
+    const arr = Array.isArray(rules) ? rules : [];
+    if (arr.length === 0) {
+      list.innerHTML = `<li class="rule-empty"><span class="log-tag">[RULE]</span><span class="log-msg">暂无规则，先在上方添加</span></li>`;
+      return true;
+    }
+    list.innerHTML = arr.map(([source, rule]) => {
+      const target = (rule && rule.target_sub) ? rule.target_sub : "—";
+      const cookie = rule && rule.allow_cookie ? "🏷 L2" : "";
+      return `<li><span class="log-tag">[RULE]</span><span class="rule-src mono">${escapeHtml(source)}</span><span class="rule-arrow">→</span><span class="rule-tgt mono">${escapeHtml(target)}</span>${cookie ? `<span class="rule-badge">${cookie}</span>` : ""}</li>`;
+    }).join("");
+    return true;
+  } catch (_) {
+    list.innerHTML = `<li class="rule-empty"><span class="log-tag">[ERR]</span><span class="log-msg">规则读取失败</span></li>`;
+    return true;
+  }
+}
+
 async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
@@ -426,17 +449,36 @@ function setupUi() {
       toast("规则已生效", "good");
       if ($("source-domain")) $("source-domain").value = "";
       if ($("target-sub")) $("target-sub").value = "";
+      const listBtn = $("list-rule-btn");
+      if (listBtn && !listBtn.classList.contains("hidden")) {
+        renderRuleList();
+      }
     } catch (e) {
       toast(`添加失败: ${e}`, "bad");
     }
   });
 
-  // 一键急救
+  // 规则列表：展示已添加的预载规则（后端 get_manual_rules 实时读取）
+  $("list-rule-btn")?.addEventListener("click", async () => {
+    const list = $("rule-list");
+    const btn = $("list-rule-btn");
+    if (!list) return;
+    if (list.classList.contains("hidden")) {
+      const ok = await renderRuleList();
+      list.classList.toggle("hidden", !ok);
+      if (btn) btn.textContent = ok ? "收起列表" : "规则列表";
+    } else {
+      list.classList.add("hidden");
+      if (btn) btn.textContent = "规则列表";
+    }
+  });
+
+  // 清理缓存（原"一键急救"，实际逻辑即清理 Edge GPU Shader 缓存）
   $("btn-emergency-fix")?.addEventListener("click", async () => {
     const btn = $("btn-emergency-fix");
     const msgEl = $("fix-msg");
     if (btn) btn.disabled = true;
-    if (msgEl) { msgEl.textContent = "正在扫描 ShaderCache…"; msgEl.className = "fix-msg mono"; }
+    if (msgEl) { msgEl.textContent = "正在清理缓存…"; msgEl.className = "fix-msg mono"; }
     try {
       const r = await invoke("clean_gpu_cache");
       if (msgEl) { msgEl.textContent = String(r); msgEl.className = "fix-msg mono done"; }

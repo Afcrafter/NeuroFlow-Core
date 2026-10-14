@@ -143,13 +143,17 @@
               <span class="rule-arrow">→</span>
               <input type="text" id="target-sub" placeholder="预载 message" />
             </div>
-            <button id="add-rule-btn" class="btn-mini">添加规则</button>
+            <div class="rule-toolbar">
+              <button id="add-rule-btn" class="btn-mini">添加规则</button>
+              <button id="list-rule-btn" class="btn-mini ghost-rm">规则列表</button>
+            </div>
+            <ul id="rule-list" class="rule-list hidden"></ul>
           </div>
 
           <div class="mini-card">
             <div class="mc-head">系统维护</div>
             <div class="maintain-row">
-              <button id="btn-emergency-fix" class="btn-mini danger">🚑 一键急救</button>
+              <button id="btn-emergency-fix" class="btn-mini danger">🧹 清理缓存</button>
               <button id="btn-scan" class="btn-mini accent">⚡ 智能扫描</button>
               <span class="est mono" id="estimate-val">—</span>
             </div>
