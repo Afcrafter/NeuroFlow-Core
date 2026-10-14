@@ -1,4 +1,21 @@
 //! 后台系统监控：网速、网络策略、内存告警
+//!
+//! ## 链路健康度探测说明（单目标局限）
+//!
+//! 脉搏评分默认只探测一个目标域名 `www.baidu.com`（DNS 解析 + TCP 443 握手计时）。
+//! 因此「链路健康度」反映的是**到该目标的网络质量**，不代表全站或你实际访问线路的整体质量：
+//! - 若该目标当前被墙 / 被限流 / 服务器异常，即使你正常上网，健康度也可能偏低（误报劣质）；
+//! - 反之若你当前线路对 baidu 畅通，但对其它站点很差，健康度也可能虚高。
+//!
+//! 可通过环境变量 `NEURO_PULSE_TARGET` 指定其它探测目标（域名或 `host:port`），
+//! 例如设置为你最常访问的站点域名；未设置时回退到默认 `www.baidu.com`。
+//!
+//! ```text
+//! 示例：NEURO_PULSE_TARGET=www.bilibili.com  npm run tauri dev
+//! ```
+//!
+//! 评分规则（`network::analyze_network_pulse`）为**硬编码档位**，非连续实时计算：
+//! DNS >300ms → 60；TCP >1000ms → 20；TCP >400ms → 50；连接被拒 → 0；否则 98。
 
 use std::time::Duration;
 
@@ -8,8 +25,18 @@ use tauri::Emitter;
 use crate::models::StrategyMode;
 use crate::network::analyze_network_pulse;
 
+/// 链路健康度探测目标：可由环境变量 `NEURO_PULSE_TARGET` 覆盖，默认 `www.baidu.com`
+pub fn pulse_target() -> String {
+    std::env::var("NEURO_PULSE_TARGET")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "www.baidu.com".to_string())
+}
+
 /// 启动周期性系统监控任务
 pub fn spawn_system_monitor(app: tauri::AppHandle) {
+    let target = pulse_target();
     tokio::spawn(async move {
         let mut networks = Networks::new();
         let _ = networks.refresh_list();
@@ -66,8 +93,9 @@ pub fn spawn_system_monitor(app: tauri::AppHandle) {
                     }
                 }
 
-                // 阻塞 DNS/TCP 探测放到 blocking 池
-                let pulse = tokio::task::spawn_blocking(|| analyze_network_pulse("www.baidu.com"))
+                // 阻塞 DNS/TCP 探测放到 blocking 池；目标见顶部说明（默认 www.baidu.com，可配 NEURO_PULSE_TARGET）
+                let pulse_target = target.clone();
+                let pulse = tokio::task::spawn_blocking(move || analyze_network_pulse(&pulse_target))
                     .await
                     .unwrap_or_else(|_| crate::models::NetworkPulse {
                         dns_time_ms: 0,

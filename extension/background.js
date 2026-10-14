@@ -219,9 +219,6 @@ function performSemanticFreeze() {
                 if (!chrome.runtime.lastError && response && !response.isHighValue) {
                     console.log("执行语义化冷冻:", tab.url);
                     chrome.tabs.discard(tab.id);
-                } else if (chrome.runtime.lastError) {
-                    // 如果连接失败（可能没加载 content script），默认可以冷冻
-                    // chrome.tabs.discard(tab.id);
                 }
             });
         });
@@ -244,12 +241,16 @@ async function getOptimizableTabs() {
 }
 
 async function executeL2Preload(url) {
+    if (!/^https?:\/\//.test(url)) return;
     try {
+        // L2 预载（带凭证）：真实 GET 拉取页面并写入 HTTP 缓存，下次导航可直接命中
+        // 相比旧版 HEAD（不缓存正文），GET 才真正让预载规则生效
         await fetch(url, {
-            method: 'HEAD',
-            mode: 'no-cors', 
+            method: 'GET',
+            mode: 'no-cors',
             credentials: 'include',
-            priority: 'low'
+            priority: 'low',
+            cache: 'default'
         });
-    } catch (e) {}
+    } catch (e) { /* 站点拒绝 / 离线时静默 */ }
 }

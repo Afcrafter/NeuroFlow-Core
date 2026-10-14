@@ -94,6 +94,24 @@
         }
         
         .footer { font-size: 10px; color: #555; text-align: center; margin-top: 15px; }
+
+        /* 实时状态数据区（连接后显示） */
+        .live-box {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            display: none;
+        }
+        .live-box.visible { display: block; }
+        .live-head { font-size: 11px; color: #00f2ff; margin-bottom: 8px; letter-spacing: 1px; }
+        .live-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .live-row:last-child { margin-bottom: 0; }
+        .live-row .k { color: #888; }
+        .live-row .v { color: #e0e0e0; font-family: monospace; }
+        .live-row .v.warn { color: #ffce54; }
+        .live-note { font-size: 10px; color: #666; margin-top: 6px; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -112,6 +130,13 @@
             <div id="status-light" class="dot"></div>
             <span id="status-text">未连接</span>
         </div>
+    </div>
+
+    <div id="live-box" class="live-box">
+        <div class="live-head">LIVE 实时状态</div>
+        <div class="live-row"><span class="k">系统内存占用</span><span class="v" id="live-mem">—</span></div>
+        <div class="live-row"><span class="k">可回收后台标签</span><span class="v warn" id="live-tabs">—</span></div>
+        <div class="live-note">数值来自 NeuroFlow Core 本地服务，每 5 秒刷新。</div>
     </div>
 
     <div class="footer">NeuroFlow Extension v1.3</div>
